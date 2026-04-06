@@ -4,3 +4,6 @@ client/node_modules/
 server/node_modules/
 uploads/
 build/
+*.mp3
+uploads/
+assets/
