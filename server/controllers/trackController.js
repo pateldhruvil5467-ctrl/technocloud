@@ -8,7 +8,7 @@ exports.uploadTrack = async (req, res) => {
         const track = new Track({
             title,
             artist,
-            audioUrl: req.file.path.replace(/\\/g, "/"),
+            audioUrl: req.file.path.replace(/\\/g, '/'),
         });
 
         await track.save();
