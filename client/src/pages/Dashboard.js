@@ -1,178 +1,137 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import PlayerBar from "../components/PlayerBar";
 
+import Sidebar from "../components/Sidebar";
+import TrackCard from "../components/TrackCard";
+import MusicPlayer from "../components/MusicPlayer";
 
 export default function Dashboard() {
     const [tracks, setTracks] = useState([]);
-    const [playingId, setPlayingId] = useState(null);
     const [audio, setAudio] = useState(null);
-    const [liked, setLiked] = useState(new Set());
+    const [playingId, setPlayingId] = useState(null);
 
-    // 🎧 FETCH TRACKS
+    const user =
+        JSON.parse(localStorage.getItem("user")) || {};
+
     useEffect(() => {
-        axios.get("http://localhost:5000/api/tracks")
-            .then(res => {
-                setTracks(res.data);
-                if (res.data.length > 0) {
-                    handlePlay(res.data[0]);
-                }
-            })
-            .catch(err => console.log(err));
+        fetchTracks();
     }, []);
 
-    // ▶️ PLAY HANDLER (CORE LOGIC)
+    const fetchTracks = async () => {
+        try {
+            const res = await axios.get(
+                "http://localhost:5000/api/tracks"
+            );
+
+            setTracks(res.data);
+        } catch (err) {
+            console.log(err);
+        }
+    };
+
     const handlePlay = (track) => {
         if (audio) {
             audio.pause();
         }
 
-        const newAudio = new Audio(`http://localhost:5000/${track.audioUrl}`);
+        const newAudio = new Audio(
+            `http://localhost:5000/${track.audioUrl}`
+        );
+
         newAudio.play();
 
         setAudio(newAudio);
         setPlayingId(track._id);
     };
 
-    // ❤️ LIKE TOGGLE
-    const toggleLike = (id) => {
-        setLiked(prev => {
-            const next = new Set(prev);
-            next.has(id) ? next.delete(id) : next.add(id);
-            return next;
-        });
-    };
-
-    const currentTrack = tracks.find(t => t._id === playingId);
+    const currentTrack = tracks.find(
+        (t) => t._id === playingId
+    );
 
     return (
-        <div style={{
-            display: "flex",
-            height: "100vh",
-            background: "#0a0a0a",
-            color: "white"
-        }}>
+        <div
+            style={{
+                display: "flex",
+                background:
+                    "radial-gradient(circle at top left,#00f5c410,transparent 20%), #050505",
+                minHeight: "100vh"
+            }}
+        >
+            <Sidebar user={user} />
 
-            {/* SIDEBAR */}
-            <aside style={{
-                width: 220,
-                padding: 20,
-                borderRight: "1px solid #222"
-            }}>
-                <h2>🎧 TechnoCloud</h2>
-                <p style={{ color: "#00f5c4" }}>Home</p>
-                <p style={{ color: "#aaa" }}>Upload</p>
-            </aside>
+            <main
+                style={{
+                    marginLeft: 250,
+                    padding: 40,
+                    width: "100%"
+                }}
+            ><div
+                className="glass"
+                style={{
+                    padding: 40,
+                    borderRadius: 30,
+                    marginBottom: 40,
+                    background:
+                        "linear-gradient(135deg,#00f5c410,#0066ff10)"
+                }}
+            >
+                    <h1
+                        className="neonText"
+                        style={{
+                            fontSize: 48,
+                            marginBottom: 15
+                        }}
+                    >
+                        Feel The Beat
+                    </h1>
 
-            {/* MAIN */}
-            <main style={{
-                flex: 1,
-                padding: "30px",
-                maxWidth: "900px",
-                margin: "0 auto",
-                paddingBottom: "100px"
-            }}>
+                    <p
+                        style={{
+                            color: "#aaa",
+                            fontSize: 48,
+                            fontWeight: 700
+                        }}
+                    >
+                        Stream futuristic electronic music on TechnoCloud
+                    </p>
+                </div>
+                <h1
+                    style={{
+                        marginBottom: 30,
+                        fontSize: 42
+                    }}
+                >
+                    Discover Music
+                </h1>
 
-                <h2 style={{ marginBottom: 20 }}>Featured Tracks</h2>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    {tracks.map((track, index) => (
-                        <TrackRow
+                <div
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns:
+                            "repeat(auto-fill, minmax(240px,1fr))",
+                        gap: 25,
+                        paddingBottom: 120
+                    }}
+                >
+                    {tracks.map((track) => (
+                        <TrackCard
                             key={track._id}
                             track={track}
-                            index={index}
-                            isPlaying={playingId === track._id}
-                            isLiked={liked.has(track._id)}
-                            onPlay={() => handlePlay(track)}
-                            onLike={() => toggleLike(track._id)}
+                            isPlaying={
+                                playingId === track._id
+                            }
+                            onPlay={() =>
+                                handlePlay(track)
+                            }
                         />
                     ))}
                 </div>
-
-                {/* NOW PLAYING */}
-                <PlayerBar track={currentTrack} audio={audio} />
             </main>
-        </div>
-    );
-}
-/* ================= TRACK ROW ================= */
-function TrackRow({ track, index, isPlaying, isLiked, onPlay, onLike }) {
-    return (
-        <div
-            onClick={onPlay}
-            style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "16px",
-                borderRadius: "12px",
-                background: isPlaying
-                    ? "linear-gradient(90deg, #00f5c420, transparent)"
-                    : "#111",
-                border: "1px solid #222",
-                cursor: "pointer"
-            }}
-        >
-            {/* LEFT */}
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ width: 30 }}>
-                    {isPlaying ? "▶" : index + 1}
-                </div>
 
-                <div>
-                    <div style={{
-                        fontWeight: 600,
-                        color: isPlaying ? "#00f5c4" : "#fff"
-                    }}>
-                        {track.title}
-                    </div>
-
-                    <div style={{ fontSize: 12, color: "#aaa" }}>
-                        {track.artist}
-                    </div>
-                </div>
-            </div>
-
-            {/* RIGHT */}
-            <button
-                onClick={(e) => {
-                    e.stopPropagation();
-                    onLike();
-                }}
-                style={{
-                    background: "none",
-                    border: "none",
-                    fontSize: 18,
-                    cursor: "pointer"
-                }}
-            >
-                {isLiked ? "❤️" : "🤍"}
-            </button>
-        </div>
-    );
-}
-
-/* ================= NOW PLAYING ================= */
-function NowPlayingPanel({ track, audio }) {
-    if (!track) return null;
-
-    return (
-        <div style={{
-            marginTop: 30,
-            padding: 20,
-            border: "1px solid #333",
-            borderRadius: 12
-        }}>
-            <h3>Now Playing</h3>
-
-            <p>{track.title} - {track.artist}</p>
-
-            {audio && (
-                <div style={{ marginTop: 10 }}>
-                    <button onClick={() => audio.play()}>▶ Play</button>
-                    <button onClick={() => audio.pause()}>⏸ Pause</button>
-                </div>
-            )}
+            <MusicPlayer
+                currentTrack={currentTrack}
+                audio={audio}
+            />
         </div>
     );
 }

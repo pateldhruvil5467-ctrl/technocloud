@@ -1,198 +1,71 @@
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap');
 
-*,
-*::before,
-*::after {
-    box-sizing: border-box;
+* {
     margin: 0;
     padding: 0;
-}
-
-:root {
-    --bg: #050508;
-    --surface: #0c0c14;
-    --card: #111119;
-    --card-hover: #16161f;
-    --border: rgba(255, 255, 255, 0.07);
-    --border-hover: rgba(255, 255, 255, 0.14);
-    --neon: #00f5c4;
-    --neon-dim: rgba(0, 245, 196, 0.12);
-    --purple: #bf5fff;
-    --red: #ff3d6b;
-    --text: #e4e4f0;
-    --muted: #5a5a70;
-    --muted2: #3a3a50;
-    --font-display: 'Syne', sans-serif;
-    --font-body: 'DM Mono', monospace;
-}
-
-html,
-body,
-#root {
-    height: 100%;
-    width: 100%;
+    box-sizing: border-box;
 }
 
 body {
-    background-color: var(--bg);
-    color: var(--text);
-    font-family: var(--font-body);
-    font-size: 14px;
-    line-height: 1.6;
+    background:
+        radial-gradient(circle at top left, #00f5c420, transparent 25%),
+        radial-gradient(circle at bottom right, #0066ff20, transparent 25%),
+        #050505;
+
+    color: white;
+    font-family: 'Poppins', sans-serif;
     overflow-x: hidden;
-    -webkit-font-smoothing: antialiased;
 }
 
-button {
-    cursor: pointer;
-    border: none;
-    background: none;
-    font-family: var(--font-body);
-    color: inherit;
-}
-
-input {
-    font-family: var(--font-body);
-    color: var(--text);
-}
-
-a {
-    text-decoration: none;
-    color: inherit;
-}
+/* SCROLLBAR */
 
 ::-webkit-scrollbar {
-    width: 4px;
-}
-
-::-webkit-scrollbar-track {
-    background: var(--bg);
+    width: 8px;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: var(--muted2);
-    border-radius: 4px;
+    background: #00f5c4;
+    border-radius: 20px;
 }
 
-/* ── Keyframe Animations ── */
+/* GLASS EFFECT */
 
-@keyframes fadeUp {
-    from {
-        opacity: 0;
-        transform: translateY(24px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.glass {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
+/* NEON */
 
-    to {
-        opacity: 1;
-    }
+.neonText {
+    color: #00f5c4;
+    text-shadow:
+        0 0 6px rgba(0, 245, 196, 0.5);
 }
 
-@keyframes float {
-
-    0%,
-    100% {
-        transform: translateY(0px);
-    }
-
-    50% {
-        transform: translateY(-10px);
-    }
+.neonGlow {
+    box-shadow:
+        0 0 10px #00f5c4,
+        0 0 20px #00f5c4;
 }
 
-@keyframes spinSlow {
-    from {
-        transform: rotate(0deg);
-    }
+/* BUTTON */
 
-    to {
-        transform: rotate(360deg);
-    }
+.neonButton {
+    background: #00f5c4;
+    color: black;
+    border: none;
+    padding: 14px 24px;
+    border-radius: 14px;
+    cursor: pointer;
+    font-weight: 700;
+    transition: 0.3s;
 }
 
-@keyframes pulseRing {
-    0% {
-        transform: scale(0.85);
-        opacity: 0.6;
-    }
-
-    100% {
-        transform: scale(2);
-        opacity: 0;
-    }
-}
-
-@keyframes barBounce {
-
-    0%,
-    100% {
-        transform: scaleY(0.3);
-    }
-
-    50% {
-        transform: scaleY(1);
-    }
-}
-
-@keyframes marqueeScroll {
-    from {
-        transform: translateX(0);
-    }
-
-    to {
-        transform: translateX(-50%);
-    }
-}
-
-@keyframes scanline {
-    0% {
-        top: -5%;
-    }
-
-    100% {
-        top: 105%;
-    }
-}
-
-@keyframes progressFill {
-    from {
-        width: 0%;
-    }
-
-    to {
-        width: 100%;
-    }
-}
-
-@keyframes splashFadeOut {
-    from {
-        opacity: 1;
-    }
-
-    to {
-        opacity: 0;
-        pointer-events: none;
-    }
-}
-
-@keyframes blink {
-
-    0%,
-    100% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0;
-    }
+.neonButton:hover {
+    transform: scale(1.05);
+    box-shadow:
+        0 0 10px #00f5c4,
+        0 0 25px #00f5c4;
 }

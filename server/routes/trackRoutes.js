@@ -3,14 +3,23 @@ const router = express.Router();
 
 const upload = require("../config/multer");
 
-//import both controller functions correctly
-const { uploadTrack, getTracks } = require("../controllers/trackController");
+const {
+    uploadTrack,
+    getTracks,
+    deleteTrack,
+} = require("../controllers/trackController");
 
-// UPLOAD TRACK route
-router.post("/upload", upload.single("audio"), uploadTrack);
-
-// GET ALL TRACKS route
+// GET ALL TRACKS
 router.get("/", getTracks);
 
-module.exports = router;
+// UPLOAD TRACK
+router.post(
+    "/upload",
+    upload.single("file"),
+    uploadTrack
+);
 
+// DELETE TRACK
+router.delete("/:id", deleteTrack);
+
+module.exports = router;
