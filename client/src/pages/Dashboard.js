@@ -1,137 +1,85 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
-
 import Sidebar from "../components/Sidebar";
+import Topbar from "../components/Topbar";
 import TrackCard from "../components/TrackCard";
-import MusicPlayer from "../components/MusicPlayer";
 
-export default function Dashboard() {
-    const [tracks, setTracks] = useState([]);
-    const [audio, setAudio] = useState(null);
-    const [playingId, setPlayingId] = useState(null);
+function Dashboard() {
 
-    const user =
-        JSON.parse(localStorage.getItem("user")) || {};
-
-    useEffect(() => {
-        fetchTracks();
-    }, []);
-
-    const fetchTracks = async () => {
-        try {
-            const res = await axios.get(
-                "http://localhost:5000/api/tracks"
-            );
-
-            setTracks(res.data);
-        } catch (err) {
-            console.log(err);
-        }
-    };
-
-    const handlePlay = (track) => {
-        if (audio) {
-            audio.pause();
-        }
-
-        const newAudio = new Audio(
-            `http://localhost:5000/${track.audioUrl}`
-        );
-
-        newAudio.play();
-
-        setAudio(newAudio);
-        setPlayingId(track._id);
-    };
-
-    const currentTrack = tracks.find(
-        (t) => t._id === playingId
+    const user = JSON.parse(
+        sessionStorage.getItem("user")
     );
 
     return (
-        <div
-            style={{
-                display: "flex",
-                background:
-                    "radial-gradient(circle at top left,#00f5c410,transparent 20%), #050505",
-                minHeight: "100vh"
-            }}
-        >
+        <div className="flex bg-black min-h-screen">
+
+            {/* SIDEBAR */}
+
             <Sidebar user={user} />
 
-            <main
-                style={{
-                    marginLeft: 250,
-                    padding: 40,
-                    width: "100%"
-                }}
-            ><div
-                className="glass"
-                style={{
-                    padding: 40,
-                    borderRadius: 30,
-                    marginBottom: 40,
-                    background:
-                        "linear-gradient(135deg,#00f5c410,#0066ff10)"
-                }}
-            >
-                    <h1
-                        className="neonText"
-                        style={{
-                            fontSize: 48,
-                            marginBottom: 15
-                        }}
-                    >
-                        Feel The Beat
-                    </h1>
+            {/* MAIN CONTENT */}
 
-                    <p
-                        style={{
-                            color: "#aaa",
-                            fontSize: 48,
-                            fontWeight: 700
-                        }}
-                    >
-                        Stream futuristic electronic music on TechnoCloud
-                    </p>
+            <div className="flex-1">
+
+                {/* TOPBAR */}
+
+                <Topbar user={user} />
+
+                {/* PAGE CONTENT */}
+
+                <div className="p-10">
+
+                    {/* HERO SECTION */}
+
+                    <div className="bg-gradient-to-r from-[#001a17] to-[#001d33] rounded-[30px] p-10 border border-[#161616] mb-14">
+
+                        <h1 className="text-6xl font-extrabold text-[#00ffd5] leading-none drop-shadow-[0_0_25px_#00ffd5]">
+                            Feel The Beat
+                        </h1>
+
+                        <p className="text-gray-400 text-lg mt-6">
+                            Welcome back, {user?.username}
+                        </p>
+
+                    </div>
+
+                    {/* FEATURED TRACKS */}
+
+                    <div>
+
+                        <h2 className="text-white text-5xl font-bold mb-10">
+                            Featured Tracks
+                        </h2>
+
+                        <div className="grid grid-cols-3 gap-8">
+
+                            <TrackCard
+                                title="Midnight Pulse"
+                                artist="DJ Nova"
+                                color="bg-gradient-to-br from-cyan-400 to-cyan-900"
+                            />
+
+                            <TrackCard
+                                title="Neon Dreams"
+                                artist="CyberWave"
+                                color="bg-gradient-to-br from-pink-500 to-pink-900"
+                            />
+
+                            <TrackCard
+                                title="Future Bass"
+                                artist="SynthX"
+                                color="bg-gradient-to-br from-purple-500 to-indigo-900"
+                            />
+
+                        </div>
+
+
+                    </div>
+
                 </div>
-                <h1
-                    style={{
-                        marginBottom: 30,
-                        fontSize: 42
-                    }}
-                >
-                    Discover Music
-                </h1>
 
-                <div
-                    style={{
-                        display: "grid",
-                        gridTemplateColumns:
-                            "repeat(auto-fill, minmax(240px,1fr))",
-                        gap: 25,
-                        paddingBottom: 120
-                    }}
-                >
-                    {tracks.map((track) => (
-                        <TrackCard
-                            key={track._id}
-                            track={track}
-                            isPlaying={
-                                playingId === track._id
-                            }
-                            onPlay={() =>
-                                handlePlay(track)
-                            }
-                        />
-                    ))}
-                </div>
-            </main>
+            </div>
 
-            <MusicPlayer
-                currentTrack={currentTrack}
-                audio={audio}
-            />
         </div>
     );
 }
+
+export default Dashboard;

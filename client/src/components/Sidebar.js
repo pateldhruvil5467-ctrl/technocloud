@@ -1,67 +1,45 @@
-import React from "react";
-
-export default function Sidebar({ user }) {
-
-    console.log(user);
-
+function Sidebar({ user }) {
     return (
-        <aside
-            className="glass"
-            style={{
-                width: 250,
-                padding: 30,
-                borderRight: "1px solid rgba(255,255,255,0.05)",
-                height: "100vh",
-                position: "fixed",
-                left: 0,
-                top: 0
-            }}
-        >
-            <h1
-                style={{
-                    fontSize: 30,
-                    fontWeight: 800,
-                    marginBottom: 60,
-                    lineHeight: 1.1
-                }}
-            >
-                <div>
-                    <div style={{ fontSize: 40 }}>🎧</div>
+        <div className="w-[300px] min-h-screen bg-[#0b0b0b] border-r border-[#161616] p-8">
 
-                    <div className="neonText">
-                        TechnoCloud
-                    </div>
+            {/* Logo */}
+
+            <div className="mb-20">
+                <div className="text-7xl mb-3">
+                    🎧
                 </div>
-            </h1>
 
-            <div
-                style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 25
-                }}
-            >
-                <p style={linkStyle}>🏠 Home</p>
-
-                <p style={linkStyle}>🔥 Trending</p>
-
-                <p style={linkStyle}>🎵 Library</p>
-
-                {user?.role?.toUpperCase() === "ARTIST" && (
-                    <p style={linkStyle}>⬆ Upload</p>
-                )}
-
-                {user?.role?.toUpperCase() === "ADMIN" && (
-                    <p style={linkStyle}>🛠 Admin Panel</p>
-                )}
+                <h1 className="text-4xl font-bold text-[#00ffd5] drop-shadow-[0_0_15px_#00ffd5]">
+                    TechnoCloud
+                </h1>
             </div>
-        </aside>
+
+            {/* Navigation */}
+
+            <div className="flex flex-col gap-8 text-3xl">
+
+                <button className="text-gray-300 hover:text-[#00ffd5] transition">
+                    🏠 Home
+                </button>
+
+                <button className="text-gray-300 hover:text-[#00ffd5] transition">
+                    🔥 Trending
+                </button>
+
+                <button className="text-gray-300 hover:text-[#00ffd5] transition">
+                    🎵 Library
+                </button>
+
+                {user?.role === "ARTIST" && (
+                    <button className="text-[#00ffd5] font-semibold">
+                        ⬆ Upload Track
+                    </button>
+                )}
+
+            </div>
+
+        </div>
     );
 }
 
-const linkStyle = {
-    color: "#aaa",
-    cursor: "pointer",
-    fontSize: 18,
-    transition: "0.2s"
-};
+export default Sidebar;

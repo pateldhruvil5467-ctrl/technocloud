@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { useNavigate, Link } from "react-router-dom";
 
 export default function RegisterPage({ setShowLogin }) {
 
@@ -79,9 +80,23 @@ export default function RegisterPage({ setShowLogin }) {
                 </button>
 
                 <p
-                    onClick={() => setShowLogin(false)} style={switchStyle}
+                    style={{
+                        marginTop: "20px",
+                        color: "#aaa",
+                        textAlign: "center",
+                    }}
                 >
-                    Already have account? Login
+                    Already have account?{" "}
+                    <Link
+                        to="/"
+                        style={{
+                            color: "#00ffd5",
+                            textDecoration: "none",
+                            fontWeight: "600",
+                        }}
+                    >
+                        Login
+                    </Link>
                 </p>
 
             </div>
