@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -6,38 +6,26 @@ import Dashboard from "./pages/Dashboard";
 
 function App() {
 
-    const user = sessionStorage.getItem("user")
-        ? JSON.parse(sessionStorage.getItem("user"))
-        : null;
-
     return (
-        <BrowserRouter>
-            <Routes>
 
-                {/* LOGIN PAGE */}
-                <Route
-                    path="/"
-                    element={
-                        user ? <Navigate to="/dashboard" /> : <LoginPage />
-                    }
-                />
+        <Routes>
 
-                {/* REGISTER PAGE */}
-                <Route
-                    path="/register"
-                    element={<RegisterPage />}
-                />
+            <Route
+                path="/"
+                element={<LoginPage />}
+            />
 
-                {/* DASHBOARD */}
-                <Route
-                    path="/dashboard"
-                    element={
-                        user ? <Dashboard /> : <Navigate to="/" />
-                    }
-                />
+            <Route
+                path="/register"
+                element={<RegisterPage />}
+            />
 
-            </Routes>
-        </BrowserRouter>
+            <Route
+                path="/dashboard"
+                element={<Dashboard />}
+            />
+
+        </Routes>
     );
 }
 

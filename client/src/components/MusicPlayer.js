@@ -1,65 +1,50 @@
-import { useContext, useEffect, useRef, useState } from "react";
-import { PlayerContext } from "../context/PlayerContext";
+import { useEffect, useRef, useState } from "react";
 
-function MusicPlayer() {
+import {
+    FaPlay,
+    FaPause,
+    FaStepBackward,
+    FaStepForward,
+} from "react-icons/fa";
 
-    const { currentTrack } = useContext(PlayerContext);
+function MusicPlayer({
+    currentTrack,
+    isPlaying,
+    setIsPlaying,
+}) {
 
     const audioRef = useRef(null);
 
-    const [isPlaying, setIsPlaying] = useState(false);
+    const [duration, setDuration] = useState(0);
 
     const [currentTime, setCurrentTime] = useState(0);
 
-    const [duration, setDuration] = useState(0);
-
-    // PLAY TRACK WHEN SELECTED
-
     useEffect(() => {
 
-        if (currentTrack && audioRef.current) {
-
-            audioRef.current.src = currentTrack.audio;
-
-            audioRef.current.play()
-                .then(() => {
-                    setIsPlaying(true);
-                })
-                .catch((err) => {
-                    console.log(err);
-                });
-        }
-
-    }, [currentTrack]);
-
-    // PLAY / PAUSE
-
-    const togglePlay = () => {
-
-        if (!audioRef.current) return;
+        if (!audioRef.current || !currentTrack) return;
 
         if (isPlaying) {
 
-            audioRef.current.pause();
-            setIsPlaying(false);
+            audioRef.current
+                .play()
+                .catch((err) => console.log(err));
 
         } else {
 
-            audioRef.current.play();
-            setIsPlaying(true);
+            audioRef.current.pause();
         }
-    };
 
-    // UPDATE TIME
+    }, [isPlaying, currentTrack]);
+
+    const handleLoadedMetadata = () => {
+
+        setDuration(audioRef.current.duration);
+    };
 
     const handleTimeUpdate = () => {
 
         setCurrentTime(audioRef.current.currentTime);
-
-        setDuration(audioRef.current.duration || 0);
     };
-
-    // FORMAT TIME
 
     const formatTime = (time) => {
 
@@ -74,53 +59,54 @@ function MusicPlayer() {
 
     return (
 
-        <div className="fixed bottom-0 left-0 right-0 h-24 bg-black/95 border-t border-cyan-500/20 backdrop-blur-xl flex items-center justify-between px-8 z-50">
+        <div className="fixed bottom-0 left-0 right-0 h-[95px] bg-black/95 border-t border-cyan-400/20 backdrop-blur-lg flex items-center justify-between px-8 z-50">
 
-            {/* AUDIO ELEMENT */}
+            {/* LEFT */}
 
-            <audio
-                ref={audioRef}
-                onTimeUpdate={handleTimeUpdate}
-            />
+            <div className="flex items-center gap-4 w-[300px]">
 
-            {/* TRACK INFO */}
-
-            <div className="flex items-center gap-4 w-[250px]">
-
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-400 to-violet-600 shadow-[0_0_25px_rgba(0,255,213,0.4)]"></div>
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500"></div>
 
                 <div>
 
-                    <h3 className="text-white font-bold">
-
+                    <h3 className="text-white font-semibold">
                         {currentTrack?.title || "No Track Selected"}
-
                     </h3>
 
                     <p className="text-gray-400 text-sm">
-
                         {currentTrack?.artist || "Select a track"}
-
                     </p>
 
                 </div>
 
             </div>
 
-            {/* PLAYER CONTROLS */}
+            {/* CENTER */}
 
-            <div className="flex flex-col items-center flex-1 max-w-2xl">
+            <div className="flex flex-col items-center flex-1 max-w-[600px]">
 
-                <button
-                    onClick={togglePlay}
-                    className="w-16 h-16 rounded-full bg-cyan-400 text-black text-2xl font-bold shadow-[0_0_30px_rgba(0,255,213,0.7)] hover:scale-105 transition"
-                >
+                <div className="flex items-center gap-8 mb-2">
 
-                    {isPlaying ? "❚❚" : "▶"}
+                    <button className="text-white text-xl">
+                        <FaStepBackward />
+                    </button>
 
-                </button>
+                    <button
+                        onClick={() => setIsPlaying(!isPlaying)}
+                        className="w-16 h-16 rounded-full bg-cyan-400 flex items-center justify-center text-black text-2xl shadow-[0_0_25px_#00ffd5]"
+                    >
 
-                <div className="flex items-center gap-3 w-full mt-3">
+                        {isPlaying ? <FaPause /> : <FaPlay />}
+
+                    </button>
+
+                    <button className="text-white text-xl">
+                        <FaStepForward />
+                    </button>
+
+                </div>
+
+                <div className="flex items-center gap-3 w-full">
 
                     <span className="text-gray-400 text-sm">
                         {formatTime(currentTime)}
@@ -135,7 +121,7 @@ function MusicPlayer() {
                             audioRef.current.currentTime = e.target.value;
                             setCurrentTime(e.target.value);
                         }}
-                        className="w-full accent-cyan-400"
+                        className="flex-1"
                     />
 
                     <span className="text-gray-400 text-sm">
@@ -146,11 +132,25 @@ function MusicPlayer() {
 
             </div>
 
-            {/* VERSION */}
+            {/* RIGHT */}
 
-            <div className="w-[200px] text-right text-gray-500 text-sm">
+            <div className="w-[300px] text-right text-gray-500">
                 TechnoCloud v1
             </div>
+
+            {/* AUDIO */}
+
+            {
+                currentTrack && (
+
+                    <audio
+                        ref={audioRef}
+                        src={currentTrack.audio}
+                        onLoadedMetadata={handleLoadedMetadata}
+                        onTimeUpdate={handleTimeUpdate}
+                    />
+                )
+            }
 
         </div>
     );

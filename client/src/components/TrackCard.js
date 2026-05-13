@@ -1,14 +1,9 @@
-import { useContext } from "react";
-import { PlayerContext } from "../context/PlayerContext";
-
-function TrackCard({ track }) {
-
-    const { setCurrentTrack } = useContext(PlayerContext);
+function TrackCard({ track, onPlay }) {
 
     return (
 
         <div
-            onClick={() => setCurrentTrack(track)}
+            onClick={onPlay}
             className="bg-[#111111] border border-white/5 rounded-3xl p-5 hover:border-cyan-400/40 transition cursor-pointer group"
         >
 

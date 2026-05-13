@@ -1,49 +1,46 @@
 const Track = require("../models/Track");
 
-const uploadTrack = async (req, res) => {
-    try {
-        const { title } = req.body;
+exports.uploadTrack = async (req, res) => {
 
-        if (!req.file) {
-            return res.status(400).json({
-                message: "No file uploaded",
-            });
-        }
+    try {
 
         const newTrack = new Track({
-            title,
-            artist: req.user.username,
-            audioUrl: `/uploads/${req.file.filename}`,
-            uploadedBy: req.user._id,
+
+            title: req.body.title,
+
+            artist: req.body.artist,
+
+            audio: req.file.filename,
+
         });
 
         await newTrack.save();
 
-        res.status(201).json(newTrack);
+        res.status(201).json({
+            message: "Track uploaded successfully",
+            track: newTrack,
+        });
+
     } catch (error) {
-        console.log(error);
 
         res.status(500).json({
-            message: "Upload failed",
+            error: error.message,
         });
     }
 };
 
-const getTracks = async (req, res) => {
+exports.getTracks = async (req, res) => {
+
     try {
-        const tracks = await Track.find().sort({
-            createdAt: -1,
-        });
+
+        const tracks = await Track.find().sort({ createdAt: -1 });
 
         res.json(tracks);
+
     } catch (error) {
+
         res.status(500).json({
-            message: "Failed to fetch tracks",
+            error: error.message,
         });
     }
-};
-
-module.exports = {
-    uploadTrack,
-    getTracks,
 };

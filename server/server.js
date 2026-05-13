@@ -4,34 +4,40 @@ const express = require("express");
 const cors = require("cors");
 
 const connectDB = require("./config/db");
-// Connect to MongoDB
+
+const authRoutes = require("./routes/authRoutes");
+const trackRoutes = require("./routes/trackRoutes");
+
+// CONNECT DATABASE
+
 connectDB();
 
 const app = express();
 
-// Middleware (after DB connection and before routes)
+// MIDDLEWARE
+
 app.use(cors());
+
 app.use(express.json());
 
-// Serve uploaded files statically  
+// STATIC FILES
+
 app.use("/uploads", express.static("uploads"));
 
-// Routes after app creation 
-const authRoutes = require("./routes/authRoutes");
-const trackRoutes = require("./routes/trackRoutes");
+// ROUTES
 
 app.use("/api/auth", authRoutes);
+
 app.use("/api/tracks", trackRoutes);
 
+// TEST ROUTE
 
-
-//test route
 app.get("/", (req, res) => {
     res.send("TechnoCloud API is running 🚀");
-
 });
 
-//start the server
+// SERVER
+
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
