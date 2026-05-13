@@ -1,10 +1,28 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const trackSchema = new mongoose.Schema({
-    title: String,
-    artist: String,
-    audioUrl: String,
-    uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-}, { timestamps: true });
+const trackSchema = new mongoose.Schema(
+    {
+        title: {
+            type: String,
+            required: true,
+        },
 
-module.exports = mongoose.model('Track', trackSchema);
+        artist: {
+            type: String,
+            required: true,
+        },
+
+        audioUrl: {
+            type: String,
+            required: true,
+        },
+
+        uploadedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+        },
+    },
+    { timestamps: true }
+);
+
+module.exports = mongoose.model("Track", trackSchema);

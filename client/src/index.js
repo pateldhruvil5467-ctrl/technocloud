@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { PlayerContext, PlyerProvider } from "./context/PlayerContext";
 
 import "./index.css";
 
@@ -15,6 +16,8 @@ const root =
 
 root.render(
     <AuthProvider>
-        <App />
+        <PlyerProvider>
+            <App />
+        </PlyerProvider>
     </AuthProvider>
 );

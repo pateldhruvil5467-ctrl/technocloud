@@ -6,20 +6,17 @@ const upload = require("../config/multer");
 const {
     uploadTrack,
     getTracks,
-    deleteTrack,
 } = require("../controllers/trackController");
 
-// GET ALL TRACKS
-router.get("/", getTracks);
+const { protect } = require("../middleware/authMiddleware");
 
-// UPLOAD TRACK
 router.post(
     "/upload",
-    upload.single("file"),
+    protect,
+    upload.single("audio"),
     uploadTrack
 );
 
-// DELETE TRACK
-router.delete("/:id", deleteTrack);
+router.get("/", getTracks);
 
 module.exports = router;
