@@ -1,49 +1,88 @@
-function Sidebar({ user, openUpload }) {
+import { Link } from "react-router-dom";
+
+function Sidebar() {
+
+    const user = JSON.parse(sessionStorage.getItem("user"));
+
+    const linkStyle = {
+        color: "white",
+        textDecoration: "none",
+        fontSize: "22px",
+        marginBottom: "34px",
+        display: "flex",
+        alignItems: "center",
+        gap: "14px",
+        fontWeight: "600",
+        transition: "0.3s",
+    };
 
     return (
 
-        <div className="w-[300px] min-h-screen bg-[#0b0b0b] border-r border-[#161616] p-8">
+        <div
+            style={{
+                width: "250px",
+                height: "100vh",
+                background: "#050505",
+                borderRight: "1px solid #111",
+                padding: "35px 25px",
+                position: "fixed",
+                left: 0,
+                top: 0,
+                boxSizing: "border-box",
+                zIndex: 100,
+            }}
+        >
 
-            {/* Logo */}
-
-            <div className="mb-20">
-
-                <div className="text-7xl mb-3">
-                    🎧
-                </div>
-
-                <h1 className="text-4xl font-bold text-[#00ffd5] drop-shadow-[0_0_15px_#00ffd5]">
-                    TechnoCloud
-                </h1>
-
+            <div
+                style={{
+                    fontSize: "70px",
+                }}
+            >
+                🎧
             </div>
 
-            {/* Navigation */}
+            <h1
+                style={{
+                    color: "#00ffd5",
+                    fontSize: "32px",
+                    marginTop: "10px",
+                    marginBottom: "0",
+                    textShadow:
+                        "0 0 20px rgba(0,255,213,0.6)",
+                }}
+            >
+                TechnoCloud
+            </h1>
 
-            <div className="flex flex-col gap-8 text-3xl">
+            <div
+                style={{
+                    marginTop: "70px",
+                    display: "flex",
+                    flexDirection: "column",
+                }}
+            >
 
-                <button className="text-gray-300 hover:text-[#00ffd5] transition text-left">
+                <Link to="/home" style={linkStyle}>
                     🏠 Home
-                </button>
+                </Link>
 
-                <button className="text-gray-300 hover:text-[#00ffd5] transition text-left">
+                <Link to="/trending" style={linkStyle}>
                     🔥 Trending
-                </button>
+                </Link>
 
-                <button className="text-gray-300 hover:text-[#00ffd5] transition text-left">
+                <Link to="/library" style={linkStyle}>
                     🎵 Library
-                </button>
+                </Link>
 
                 {user?.role === "ARTIST" && (
 
-                    <button
-                        onClick={openUpload}
-                        className="text-[#00ffd5] font-semibold text-left hover:scale-[1.02] transition"
-                    >
-                        ⬆ Upload Track
-                    </button>
+                    <Link to="/my-tracks" style={linkStyle}>
+                        💿 My Tracks
+                    </Link>
 
                 )}
+
+
 
             </div>
 

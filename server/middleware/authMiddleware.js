@@ -1,24 +1,33 @@
 const jwt = require("jsonwebtoken");
 
-// 🔐 AUTH MIDDLEWARE
-exports.protect = (req, res, next) => {
-    const token = req.headers.authorization?.split(" ")[1];
-
-    if (!token) return res.status(401).json({ message: "No token, authorization denied" });
+const auth = async (req, res, next) => {
 
     try {
-        const decoded = jwt.verify(token, "secret123");
+
+        const token = req.header("Authorization");
+
+        if (!token) {
+
+            return res.status(401).json({
+                message: "No token provided",
+            });
+        }
+
+        const decoded = jwt.verify(
+            token,
+            "techno_secret"
+        );
+
         req.user = decoded;
+
         next();
-    } catch {
-        res.status(401).json({ message: "Invalid token" });
 
+    } catch (error) {
+
+        return res.status(401).json({
+            message: "Invalid token",
+        });
     }
 };
 
-exports.isArtist = (req, res, next) => {
-    if (req.user.role !== "ARTIST") {
-        return res.status(403).json({ message: "Access denied, artists only" });
-    }
-    next();
-};
+module.exports = auth;

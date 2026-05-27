@@ -4,19 +4,14 @@ import axios from "axios";
 import Sidebar from "../components/Sidebar";
 import TrackCard from "../components/TrackCard";
 import MusicPlayer from "../components/MusicPlayer";
-import Topbar from "../components/Topbar";
 
-function Dashboard() {
+function HomePage() {
 
     const [tracks, setTracks] = useState([]);
     const [currentTrack, setCurrentTrack] = useState(null);
 
-    const user = JSON.parse(sessionStorage.getItem("user"));
-
     useEffect(() => {
-
         fetchTracks();
-
     }, []);
 
     const fetchTracks = async () => {
@@ -27,13 +22,11 @@ function Dashboard() {
                 "http://localhost:5000/api/tracks"
             );
 
-            console.log(res.data);
-
             setTracks(res.data);
 
-        } catch (error) {
+        } catch (err) {
 
-            console.log(error);
+            console.log(err);
 
         }
     };
@@ -42,10 +35,9 @@ function Dashboard() {
 
         <div
             style={{
-                backgroundColor: "#000",
+                background: "#000",
                 minHeight: "100vh",
                 color: "white",
-                overflowX: "hidden",
             }}
         >
 
@@ -53,21 +45,30 @@ function Dashboard() {
 
             <div
                 style={{
-                    marginLeft: "300px",
-                    padding: "40px",
+                    marginLeft: "320px",
+                    padding: "50px",
                     paddingBottom: "180px",
                 }}
             >
 
-                {/* TOPBAR */}
-
-                <Topbar
-                    user={user}
-                    setUser={() => {
-                        sessionStorage.clear();
-                        window.location.href = "/login";
+                <h1
+                    style={{
+                        fontSize: "72px",
+                        marginBottom: "10px",
                     }}
-                />
+                >
+                    Discover Music
+                </h1>
+
+                <p
+                    style={{
+                        color: "#777",
+                        fontSize: "28px",
+                        marginBottom: "40px",
+                    }}
+                >
+                    Stream futuristic sounds
+                </p>
 
                 {/* TRACK LIST */}
 
@@ -75,8 +76,8 @@ function Dashboard() {
                     style={{
                         display: "flex",
                         flexDirection: "column",
-                        gap: "24px",
-                        marginTop: "40px",
+                        gap: "20px",
+                        width: "100%",
                         maxWidth: "1100px",
                     }}
                 >
@@ -95,16 +96,10 @@ function Dashboard() {
 
             </div>
 
-            {/* MUSIC PLAYER */}
-
-            {currentTrack && (
-
-                <MusicPlayer track={currentTrack} />
-
-            )}
+            <MusicPlayer track={currentTrack} />
 
         </div>
     );
 }
 
-export default Dashboard;
+export default HomePage;

@@ -1,38 +1,82 @@
-function Topbar({ user }) {
+import { useNavigate } from "react-router-dom";
 
-    const handleLogout = () => {
+function Topbar({ user, setUser }) {
+
+    const navigate = useNavigate();
+
+    function logout() {
 
         sessionStorage.clear();
 
-        window.location.href = "/";
-    };
+        setUser(null);
+
+        navigate("/login");
+    }
 
     return (
-        <div className="h-[90px] border-b border-[#151515] flex items-center justify-between px-12">
 
-            {/* Left */}
+        <div
+            style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "50px",
+            }}
+        >
 
             <div>
-                <h1 className="text-4xl font-bold text-white">
+
+                <h1
+                    style={{
+                        fontSize: "72px",
+                        margin: 0,
+                        fontWeight: "800",
+                    }}
+                >
                     Discover Music
                 </h1>
 
-                <p className="text-gray-500 text-base mt-2">
+                <p
+                    style={{
+                        color: "#666",
+                        fontSize: "28px",
+                        marginTop: "10px",
+                    }}
+                >
                     Stream futuristic sounds
                 </p>
+
             </div>
 
-            {/* Right */}
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "20px",
+                }}
+            >
 
-            <div className="flex items-center gap-6">
-
-                <div className="text-[#00ffd5] text-lg font-semibold">
-                    {user?.username}
+                <div
+                    style={{
+                        color: "#29dfff",
+                        fontWeight: "700",
+                        fontSize: "28px",
+                    }}
+                >
+                    {user?.role}
                 </div>
 
                 <button
-                    onClick={handleLogout}
-                    className="bg-[#00ffd5] text-black font-bold px-6 py-3 rounded-2xl hover:scale-105 transition"
+                    onClick={logout}
+                    style={{
+                        padding: "18px 32px",
+                        borderRadius: "18px",
+                        border: "none",
+                        background: "#42cfff",
+                        fontSize: "24px",
+                        fontWeight: "700",
+                        cursor: "pointer",
+                    }}
                 >
                     Logout
                 </button>

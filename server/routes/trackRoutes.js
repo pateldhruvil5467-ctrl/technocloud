@@ -1,20 +1,40 @@
 const express = require("express");
-
 const router = express.Router();
 
-const multer = require("../config/multer");
+const multer = require("multer");
 
-const {
-    uploadTrack,
-    getTracks,
-} = require("../controllers/trackController");
+const trackController = require("../controllers/trackController");
+
+const auth = require("../middleware/authMiddleware");
+
+const storage = multer.diskStorage({
+
+    destination: (req, file, cb) => {
+
+        cb(null, "uploads/");
+    },
+
+    filename: (req, file, cb) => {
+
+        cb(
+            null,
+            Date.now() + "-" + file.originalname
+        );
+    },
+});
+
+const upload = multer({ storage });
 
 router.post(
     "/upload",
-    multer.single("audio"),
-    uploadTrack
+    auth,
+    upload.single("audio"),
+    trackController.uploadTrack
 );
 
-router.get("/", getTracks);
+router.get(
+    "/",
+    trackController.getTracks
+);
 
 module.exports = router;

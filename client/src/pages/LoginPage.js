@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 
-function LoginPage() {
+function LoginPage({ setUser }) {
 
     const navigate = useNavigate();
 
@@ -10,6 +10,7 @@ function LoginPage() {
     const [password, setPassword] = useState("");
 
     const handleLogin = async (e) => {
+
         e.preventDefault();
 
         try {
@@ -22,14 +23,23 @@ function LoginPage() {
                 }
             );
 
-            // SAVE USER SESSION
+            // SAVE TOKEN
             sessionStorage.setItem(
-                "user",
-                JSON.stringify(res.data)
+                "token",
+                res.data.token
             );
 
-            // REDIRECT TO DASHBOARD
-            window.location.href = "/dashboard";
+            // SAVE USER
+            sessionStorage.setItem(
+                "user",
+                JSON.stringify(res.data.user)
+            );
+
+            // UPDATE APP STATE
+            setUser(res.data.user);
+
+            // REDIRECT
+            navigate("/");
 
         } catch (err) {
 
@@ -42,6 +52,7 @@ function LoginPage() {
     };
 
     return (
+
         <div
             style={{
                 height: "100vh",
@@ -107,6 +118,7 @@ function LoginPage() {
                     }}
                 >
                     Don't have an account?{" "}
+
                     <Link
                         to="/register"
                         style={{
@@ -116,6 +128,7 @@ function LoginPage() {
                     >
                         Signup
                     </Link>
+
                 </p>
 
             </form>
