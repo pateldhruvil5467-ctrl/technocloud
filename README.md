@@ -90,13 +90,16 @@ TechnoCloud/
 ## 📸 Screenshots
 
 ### Dashboard
-(Add screenshot here)
+<img width="1836" height="955" alt="MusicDashboard" src="https://github.com/user-attachments/assets/10ef1300-13e7-4854-9e6a-4001c5696808" />
+
 
 ### Music Player
-(Add screenshot here)
+<img width="1830" height="953" alt="MusicPlayer" src="https://github.com/user-attachments/assets/88018e85-692a-42d5-a027-cd6b3b4e2860" />
+
 
 ### Upload Track
-(Add screenshot here)
+<img width="1830" height="954" alt="UploadTrack" src="https://github.com/user-attachments/assets/d365b03c-3cec-4e5a-90db-c4538da45ccd" />
+
 
 ---
 
