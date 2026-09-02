@@ -15,7 +15,7 @@ const auth = async (req, res, next) => {
 
         const decoded = jwt.verify(
             token,
-            "techno_secret"
+            process.env.JWT_SECRET
         );
 
         req.user = decoded;

@@ -9,6 +9,13 @@ const path = require("path");
 const authRoutes = require("./routes/authRoutes");
 const trackRoutes = require("./routes/trackRoutes");
 
+// REQUIRED ENV VARS
+
+if (!process.env.JWT_SECRET) {
+    console.error("Missing required environment variable: JWT_SECRET");
+    process.exit(1);
+}
+
 // CONNECT DATABASE
 
 connectDB();

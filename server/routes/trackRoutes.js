@@ -6,6 +6,7 @@ const multer = require("multer");
 const trackController = require("../controllers/trackController");
 
 const auth = require("../middleware/authMiddleware");
+const requireRole = require("../middleware/requireRole");
 
 const storage = multer.diskStorage({
 
@@ -28,6 +29,7 @@ const upload = multer({ storage });
 router.post(
     "/upload",
     auth,
+    requireRole(["ARTIST", "ADMIN"]),
     upload.single("audio"),
     trackController.uploadTrack
 );

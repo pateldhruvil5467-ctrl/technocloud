@@ -14,9 +14,7 @@ exports.uploadTrack = async (req, res) => {
 
             uploadedBy: user.username,
 
-            audio:
-                "http://localhost:5000/uploads/" +
-                req.file.filename,
+            audio: req.file.filename,
         });
 
         await newTrack.save();
