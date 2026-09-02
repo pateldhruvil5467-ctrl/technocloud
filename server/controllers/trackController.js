@@ -4,6 +4,12 @@ exports.uploadTrack = async (req, res) => {
 
     try {
 
+        if (!req.file) {
+            return res.status(400).json({
+                message: "Audio file is required",
+            });
+        }
+
         const user = req.user;
 
         const newTrack = new Track({

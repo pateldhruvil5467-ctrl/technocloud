@@ -9,7 +9,10 @@ const User = require("../../models/User");
 const Track = require("../../models/Track");
 const { connect, clearDatabase, closeDatabase } = require("../helpers/db");
 
+const trackRoutes = require("../../routes/trackRoutes");
+
 const FIXTURE_AUDIO = path.join(__dirname, "..", "fixtures", "test-audio.mp3");
+const FIXTURE_NON_AUDIO = path.join(__dirname, "..", "fixtures", "not-audio.txt");
 const TEST_PASSWORD = "TestPass123!";
 
 let originalCwd;
@@ -124,5 +127,68 @@ describe("POST /api/tracks/upload", () => {
             .attach("audio", FIXTURE_AUDIO);
 
         expect(res.status).toBe(201);
+    });
+
+    it("rejects an ARTIST upload with no audio file attached", async () => {
+        const token = await createUserAndLogin("ARTIST");
+
+        const res = await request(app)
+            .post("/api/tracks/upload")
+            .set("Authorization", token)
+            .field("title", "No Audio Track")
+            .field("artist", "Test Artist");
+
+        expect(res.status).toBeGreaterThanOrEqual(400);
+        expect(res.status).toBeLessThan(500);
+        expect(res.body.message).toBe("Audio file is required");
+    });
+
+    it("rejects an ADMIN upload with no audio file attached", async () => {
+        const token = await createUserAndLogin("ADMIN");
+
+        const res = await request(app)
+            .post("/api/tracks/upload")
+            .set("Authorization", token)
+            .field("title", "No Audio Track")
+            .field("artist", "Admin Artist");
+
+        expect(res.status).toBeGreaterThanOrEqual(400);
+        expect(res.status).toBeLessThan(500);
+        expect(res.body.message).toBe("Audio file is required");
+    });
+
+    it("rejects an unsupported (non-audio) file type", async () => {
+        const token = await createUserAndLogin("ARTIST");
+
+        const res = await request(app)
+            .post("/api/tracks/upload")
+            .set("Authorization", token)
+            .field("title", "Bad Type Track")
+            .field("artist", "Test Artist")
+            .attach("audio", FIXTURE_NON_AUDIO);
+
+        expect(res.status).toBeGreaterThanOrEqual(400);
+        expect(res.status).toBeLessThan(500);
+        expect(res.body.message).toBe("Unsupported audio file type");
+    });
+
+    it("rejects an audio file over the configured size limit", async () => {
+        const token = await createUserAndLogin("ARTIST");
+
+        const oversized = Buffer.alloc(trackRoutes.MAX_UPLOAD_BYTES + 1024, 1);
+
+        const res = await request(app)
+            .post("/api/tracks/upload")
+            .set("Authorization", token)
+            .field("title", "Too Big Track")
+            .field("artist", "Test Artist")
+            .attach("audio", oversized, {
+                filename: "oversized.mp3",
+                contentType: "audio/mpeg",
+            });
+
+        expect(res.status).toBeGreaterThanOrEqual(400);
+        expect(res.status).toBeLessThan(500);
+        expect(res.body.message).toBe("Audio file exceeds the maximum allowed size");
     });
 });
