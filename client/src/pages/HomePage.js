@@ -4,6 +4,7 @@ import axios from "axios";
 import Sidebar from "../components/Sidebar";
 import TrackCard from "../components/TrackCard";
 import MusicPlayer from "../components/MusicPlayer";
+import { API_BASE_URL } from "../services/api";
 
 function HomePage() {
 
@@ -19,7 +20,7 @@ function HomePage() {
         try {
 
             const res = await axios.get(
-                "http://localhost:5000/api/tracks"
+                `${API_BASE_URL}/api/tracks`
             );
 
             setTracks(res.data);

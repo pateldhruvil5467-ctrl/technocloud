@@ -1,5 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "../services/api";
 
 function MyTracksPage() {
 
@@ -20,7 +21,7 @@ function MyTracksPage() {
             formData.append("audio", audio);
 
             await axios.post(
-                "http://localhost:5000/api/tracks/upload",
+                `${API_BASE_URL}/api/tracks/upload`,
                 formData,
                 {
                     headers: {

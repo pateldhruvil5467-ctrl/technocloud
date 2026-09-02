@@ -1,3 +1,5 @@
+import { API_BASE_URL } from "../services/api";
+
 function MusicPlayer({ track }) {
 
     if (!track) return null;
@@ -80,7 +82,7 @@ function MusicPlayer({ track }) {
             <audio
                 controls
                 autoPlay
-                src={`http://localhost:5000/uploads/${track.audio}`}
+                src={`${API_BASE_URL}/uploads/${track.audio}`}
                 style={{
                     width: "420px",
                 }}
