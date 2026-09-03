@@ -42,7 +42,21 @@ afterAll(async () => {
     await closeDatabase();
 });
 
+// Several tests below need a token for the same role. Caching one token
+// per role (instead of logging in fresh every call) keeps this file's
+// real login-request count low and predictable regardless of how many
+// tests use a given role — important now that /api/auth/login is
+// rate-limited (see tests/setup/globalSetup.js). A cached JWT stays
+// valid even after afterEach()'s clearDatabase() removes the underlying
+// User document: authMiddleware only verifies the token's signature and
+// never re-reads the user from the database.
+const tokenCache = {};
+
 async function createUserAndLogin(role) {
+    if (tokenCache[role]) {
+        return tokenCache[role];
+    }
+
     const hashedPassword = await bcrypt.hash(TEST_PASSWORD, 10);
     const email = `${role.toLowerCase()}@example.com`;
 
@@ -57,7 +71,24 @@ async function createUserAndLogin(role) {
         .post("/api/auth/login")
         .send({ email, password: TEST_PASSWORD });
 
-    return loginRes.body.token;
+    if (!loginRes.body.token) {
+        // Fail loudly and specifically here, instead of letting an
+        // undefined token reach `.set("Authorization", token)` later —
+        // that throws deep inside supertest/superagent after it has
+        // already opened a listening server for the request, which can
+        // leak that server and hang the whole test run instead of
+        // failing this one test.
+        throw new Error(
+            `Test setup failed: login for role "${role}" did not return a ` +
+                `token (status ${loginRes.status}, body: ` +
+                `${JSON.stringify(loginRes.body)}). If the status is 429, ` +
+                "the auth rate limiter rejected this test-setup login — " +
+                "see AUTH_RATE_LIMIT_MAX in tests/setup/globalSetup.js."
+        );
+    }
+
+    tokenCache[role] = loginRes.body.token;
+    return tokenCache[role];
 }
 
 describe("GET /api/tracks", () => {
