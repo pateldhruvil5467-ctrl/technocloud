@@ -4,6 +4,8 @@ const helmet = require("helmet");
 
 const authRoutes = require("./routes/authRoutes");
 const trackRoutes = require("./routes/trackRoutes");
+const userRoutes = require("./routes/userRoutes");
+const artistRoutes = require("./routes/artistRoutes");
 
 const app = express();
 
@@ -54,6 +56,10 @@ app.use("/uploads", express.static("uploads"));
 app.use("/api/auth", authRoutes);
 
 app.use("/api/tracks", trackRoutes);
+
+app.use("/api/users", userRoutes);
+
+app.use("/api/artists", artistRoutes);
 
 // TEST ROUTE
 

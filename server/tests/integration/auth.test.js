@@ -1,5 +1,6 @@
 const request = require("supertest");
 const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 const app = require("../../app");
 const User = require("../../models/User");
@@ -92,6 +93,16 @@ describe("POST /api/auth/login", () => {
             username: "loginuser",
             role: "USER",
         });
+
+        // The JWT itself must carry id, username, and role — username is
+        // what lets the upload flow attribute tracks by identity instead
+        // of guessing from request-body text (see trackController.js).
+        const decoded = jwt.decode(res.body.token);
+        expect(decoded).toMatchObject({
+            username: "loginuser",
+            role: "USER",
+        });
+        expect(decoded.id).toBeDefined();
     });
 
     it("rejects an invalid password", async () => {
@@ -119,5 +130,32 @@ describe("POST /api/auth/login", () => {
 
         expect(res.status).toBe(400);
         expect(res.body.message).toBe("Invalid email");
+    });
+});
+
+describe("Backward-compatible JWTs", () => {
+    it("accepts an old-style token that has no username claim", async () => {
+        const user = await User.create({
+            username: "legacyuser",
+            email: "legacy@example.com",
+            password: await bcrypt.hash("TestPass123!", 10),
+            role: "USER",
+        });
+
+        // Simulates a token issued before the JWT started carrying a
+        // username claim — signature and expiry are still valid, only
+        // the payload shape is old.
+        const legacyToken = jwt.sign(
+            { id: user._id, role: user.role },
+            process.env.JWT_SECRET,
+            { expiresIn: "7d" }
+        );
+
+        const res = await request(app)
+            .get("/api/users/me")
+            .set("Authorization", legacyToken);
+
+        expect(res.status).toBe(200);
+        expect(res.body.username).toBe("legacyuser");
     });
 });

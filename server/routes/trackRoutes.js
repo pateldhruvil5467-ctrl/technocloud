@@ -7,6 +7,7 @@ const trackController = require("../controllers/trackController");
 
 const auth = require("../middleware/authMiddleware");
 const requireRole = require("../middleware/requireRole");
+const requireTrackOwnership = require("../middleware/requireTrackOwnership");
 
 const storage = multer.diskStorage({
 
@@ -99,6 +100,22 @@ router.post(
 router.get(
     "/",
     trackController.getTracks
+);
+
+router.put(
+    "/:id",
+    auth,
+    requireRole(["ARTIST", "ADMIN"]),
+    requireTrackOwnership,
+    trackController.updateTrack
+);
+
+router.delete(
+    "/:id",
+    auth,
+    requireRole(["ARTIST", "ADMIN"]),
+    requireTrackOwnership,
+    trackController.deleteTrack
 );
 
 module.exports = router;
