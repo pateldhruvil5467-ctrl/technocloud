@@ -5,7 +5,7 @@ import App from "./App";
 
 import { PlayerProvider } from "./context/PlayerContext";
 
-import "./index.css";
+import "./styles/global.css";
 
 const root = ReactDOM.createRoot(
     document.getElementById("root")

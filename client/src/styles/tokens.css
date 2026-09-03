@@ -1,0 +1,102 @@
+/*
+ * TechnoCloud design tokens — Phase UI.1 (Design Foundation).
+ *
+ * "An instrument panel, not a dashboard." Dark, minimal, technical.
+ * Single palette by design — this is not a light/dark toggle system,
+ * the dark graphite foundation IS the approved visual identity.
+ *
+ * These are semantic values only. Components should consume the
+ * Tailwind utilities generated from these tokens (see tailwind.config.js)
+ * or, where a utility doesn't exist, var(--token-name) directly —
+ * never a raw hex/px value in component code.
+ */
+
+:root {
+  /* ---------- Color: surfaces ---------- */
+  /* A small, deliberate elevation hierarchy — not a gray ramp. */
+  --color-bg: #0a0a0b;              /* page ground */
+  --color-surface: #141315;          /* cards, rows, panels */
+  --color-surface-raised: #1c1a1c;   /* hover / active / raised content */
+  --color-surface-highest: #252226;  /* modals, dropdowns, popovers */
+
+  /* ---------- Color: text ---------- */
+  --color-text: #efece7;             /* primary — warm off-white, not pure white */
+  --color-text-secondary: #a49c93;   /* secondary — metadata, descriptions */
+  --color-text-faint: #6b635c;       /* tertiary — timestamps, disabled, least important */
+
+  /* ---------- Color: borders ---------- */
+  --color-border: #2b2729;           /* default hairline — structure, not decoration */
+  --color-border-strong: #3a3538;    /* emphasis / hover border */
+
+  /* ---------- Color: accent ---------- */
+  /* One accent. Warm signal-amber — an analog warning light / VU meter,
+     not a neon rave color and not an AI-gradient purple. Reserved for
+     primary actions, active nav state, focus rings, play/current-state
+     indicators, and small technical emphasis. Never a large fill. */
+  --color-accent: #ff7a29;
+  --color-accent-foreground: #170b02; /* text placed on top of accent */
+
+  /* ---------- Color: semantic state ---------- */
+  /* Distinct from --color-accent (a brand color) — these communicate
+     status, not identity, so they stay visually separate from it. */
+  --color-danger: #e5484d;
+  --color-success: #4fae7c;
+  --color-warning: #e0a537;
+
+  /* ---------- Typography: families ---------- */
+  /* Full stacks with real fallbacks live in the token itself, so any
+     consumer (Tailwind config, a raw var() reference) gets the same
+     fallback behavior automatically. */
+  --font-display: "Chakra Petch", system-ui, sans-serif;
+  --font-body: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-technical: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  /* ---------- Typography: sizes ---------- */
+  --text-display-lg: 2.5rem;   /* 40px — page-level heading */
+  --text-display-md: 1.75rem;  /* 28px — section heading */
+  --text-display-sm: 1.25rem;  /* 20px — card/subsection heading */
+  --text-body: 1rem;           /* 16px */
+  --text-small: 0.875rem;      /* 14px */
+  --text-technical: 0.8125rem; /* 13px — mono reads larger at equal px, sized down slightly */
+
+  /* ---------- Typography: line-height ---------- */
+  --leading-tight: 1.15;   /* headings */
+  --leading-normal: 1.5;   /* UI text */
+  --leading-relaxed: 1.65; /* longer body copy */
+
+  /* ---------- Typography: weight ---------- */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* ---------- Spacing ---------- */
+  /* 4px base unit. Named to match Tailwind's own default numeric scale
+     (space-4 == Tailwind's `4` == 1rem) so the two stay one mental model
+     — see tailwind.config.js for why no override was needed there. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ---------- Radius ---------- */
+  /* Precise, not soft. No rounded-2xl/3xl anywhere in this system. */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* ---------- Shadow ---------- */
+  /* Reserved for genuine elevation only — the persistent player, modals,
+     dropdowns. Not applied to ordinary cards/rows. */
+  --shadow-elevation: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 20px -10px rgba(0, 0, 0, 0.5);
+  --shadow-modal: 0 4px 8px rgba(0, 0, 0, 0.35), 0 24px 48px -16px rgba(0, 0, 0, 0.65);
+
+  /* ---------- Motion ---------- */
+  /* Minimal, restrained — see global.css for the reduced-motion override. */
+  --transition-fast: 120ms ease;
+  --transition-base: 180ms ease;
+}
