@@ -12,6 +12,11 @@ const SIZE_CLASSES = {
     sm: "w-8 h-8 text-xs",
     md: "w-10 h-10 text-sm",
     lg: "w-14 h-14 text-lg",
+    // Added in Phase UI.3 for the artist profile header — deliberately
+    // a real size in the same fixed scale, not a className override
+    // (Tailwind doesn't reliably let a passed-in className win over a
+    // conflicting utility already applied internally).
+    xl: "w-20 h-20 md:w-28 md:h-28 text-2xl",
 };
 
 function initials(name) {

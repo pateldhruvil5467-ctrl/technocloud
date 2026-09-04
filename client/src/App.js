@@ -6,6 +6,9 @@ import RegisterPage from "./pages/RegisterPage";
 import Dashboard from "./pages/Dashboard";
 import MyTracksPage from "./pages/MyTracksPage";
 import TrendingPage from "./pages/TrendingPage";
+import HomePage from "./pages/HomePage";
+import TrackDetailPage from "./pages/TrackDetailPage";
+import ArtistProfilePage from "./pages/ArtistProfilePage";
 import AppShell from "./app/AppShell";
 
 function App() {
@@ -51,28 +54,43 @@ function App() {
 
                 <Route element={<AppShell user={user} setUser={setUser} />}>
 
-                    {/* DEFAULT ROUTE */}
+                    {/* HOME — Phase UI.3: the public listener feed. Public
+                        for everyone, logged in or not (GET /api/tracks
+                        needs no auth) — this is the one routing change
+                        this phase requires: "/" used to just redirect
+                        based on login state with no real content of its
+                        own; it now renders that feed directly. "/home"
+                        (the NavRail "Home" link's target) is updated the
+                        same way so the nav leads somewhere real. */}
 
                     <Route
                         path="/"
-                        element={
-                            user ? (
-                                <Navigate to="/library" />
-                            ) : (
-                                <Navigate to="/login" />
-                            )
-                        }
-                    />
-
-                    {/* DASHBOARD */}
-
-                    <Route
-                        path="/library"
-                        element={<Dashboard />}
+                        element={<HomePage />}
                     />
 
                     <Route
                         path="/home"
+                        element={<HomePage />}
+                    />
+
+                    {/* TRACK DETAIL — Phase UI.3 */}
+
+                    <Route
+                        path="/track/:id"
+                        element={<TrackDetailPage />}
+                    />
+
+                    {/* ARTIST PROFILE — Phase UI.3 */}
+
+                    <Route
+                        path="/artist/:id"
+                        element={<ArtistProfilePage />}
+                    />
+
+                    {/* LIBRARY — unchanged, out of scope for this phase */}
+
+                    <Route
+                        path="/library"
                         element={<Dashboard />}
                     />
 
