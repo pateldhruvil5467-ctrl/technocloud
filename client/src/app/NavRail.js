@@ -28,7 +28,11 @@ const PRIMARY_ITEMS = [
 
 const STUDIO_ITEMS = [
     { key: "dashboard", label: "Dashboard", icon: FiLayout, comingSoon: true },
-    { key: "my-tracks", label: "My Tracks", to: "/my-tracks", icon: FiMusic },
+    // Phase UI.4: label changed from "My Tracks" to "Studio" to match
+    // MobileNav's tab, which already called this destination "Studio" —
+    // and now that it renders StudioPage (overview + library + upload/
+    // edit/delete), "Studio" is the accurate name.
+    { key: "my-tracks", label: "Studio", to: "/my-tracks", icon: FiMusic },
 ];
 
 function NavItem({ item }) {

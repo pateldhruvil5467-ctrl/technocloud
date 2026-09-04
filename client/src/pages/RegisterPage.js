@@ -1,9 +1,19 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 import { API_BASE_URL } from "../services/api";
 
-export default function RegisterPage({ setShowLogin }) {
+export default function RegisterPage() {
+
+    const navigate = useNavigate();
+
+    // Mirrors LoginPage.js's mount-only session check — see the comment
+    // there and in App.js for why this isn't a route-level ternary.
+    useEffect(() => {
+        if (sessionStorage.getItem("user")) {
+            navigate("/home", { replace: true });
+        }
+    }, [navigate]);
 
     const [username, setUsername] = useState("");
     const [email, setEmail] = useState("");
@@ -23,8 +33,11 @@ export default function RegisterPage({ setShowLogin }) {
                 }
             );
 
-            alert("Account created!");
-            setShowLogin(false);
+            // Registration issues no token (see server/controllers/
+            // authController.js) — it doesn't log the user in, so send
+            // them to /login to do that next, rather than into the app.
+            alert("Account created! Please log in.");
+            navigate("/login");
 
         } catch (err) {
             console.log(err);
@@ -149,11 +162,4 @@ const buttonStyle = {
     fontWeight: 700,
     fontSize: 16,
     cursor: "pointer",
-};
-
-const switchStyle = {
-    marginTop: 20,
-    color: "#00f5c4",
-    cursor: "pointer",
-    textAlign: "center",
 };

@@ -1,11 +1,34 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import axios from "axios";
 import { API_BASE_URL } from "../services/api";
 
 function LoginPage({ setUser }) {
 
     const navigate = useNavigate();
+    const location = useLocation();
+
+    // RequireAuth (app/RequireAuth.js) attaches the originally-requested
+    // location as router state before redirecting here, so a login
+    // triggered by e.g. visiting /track/abc123 while logged out lands
+    // back on /track/abc123 instead of just /home.
+    const from = location.state?.from;
+    const redirectTo = from ? `${from.pathname}${from.search || ""}` : "/home";
+
+    // A session may already exist if the user types /login into the
+    // address bar while still signed in (App.js no longer redirects
+    // this route away declaratively — see the comment there). Checked
+    // once, on mount, straight from sessionStorage rather than a live
+    // `user` prop: this only needs to catch "already had a session
+    // before this page ever mounted," not react to `setUser` being
+    // called moments later by this same page's own handleLogin.
+    useEffect(() => {
+        if (sessionStorage.getItem("user")) {
+            navigate(redirectTo, { replace: true });
+        }
+        // Intentionally mount-only — see comment above.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -39,8 +62,10 @@ function LoginPage({ setUser }) {
             // UPDATE APP STATE
             setUser(res.data.user);
 
-            // REDIRECT
-            navigate("/");
+            // REDIRECT — back to wherever the user was trying to go, or
+            // /home by default. `replace` so /login doesn't linger in
+            // history (no bounce-back-to-login on the browser back button).
+            navigate(redirectTo, { replace: true });
 
         } catch (err) {
 

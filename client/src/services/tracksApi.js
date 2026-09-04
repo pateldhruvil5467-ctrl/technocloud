@@ -37,3 +37,43 @@ export async function getTrackById(id) {
 
     return track;
 }
+
+function authHeaders() {
+    return { Authorization: sessionStorage.getItem("token") };
+}
+
+/*
+ * The following three calls back the Artist Studio (Phase UI.4). Each
+ * mirrors the real backend contract exactly (server/routes/trackRoutes.js,
+ * server/controllers/trackController.js) rather than a hoped-for one:
+ *
+ * - uploadTrack only ever accepts title/artist/audio — the controller
+ *   silently ignores anything else sent at upload time.
+ * - updateTrack's allowlist is exactly title/artist/genre/subgenre/tags/
+ *   isMix/visibility; callers should only ever pass those keys.
+ * - There is no GET /api/tracks/mine — "my tracks" is the same
+ *   client-side filter pattern as getTrackById above, done by the
+ *   caller (StudioPage) using getTracks() plus the caller's own
+ *   ArtistProfile id from GET /api/users/me.
+ */
+
+export async function uploadTrack(formData) {
+    const res = await axios.post(`${API_BASE_URL}/api/tracks/upload`, formData, {
+        headers: authHeaders(),
+    });
+    return res.data;
+}
+
+export async function updateTrack(id, payload) {
+    const res = await axios.put(`${API_BASE_URL}/api/tracks/${id}`, payload, {
+        headers: authHeaders(),
+    });
+    return res.data;
+}
+
+export async function deleteTrack(id) {
+    const res = await axios.delete(`${API_BASE_URL}/api/tracks/${id}`, {
+        headers: authHeaders(),
+    });
+    return res.data;
+}
