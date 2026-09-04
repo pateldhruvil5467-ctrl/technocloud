@@ -1,18 +1,14 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
-import Sidebar from "../components/Sidebar";
 import TrackCard from "../components/TrackCard";
-import MusicPlayer from "../components/MusicPlayer";
-import Topbar from "../components/Topbar";
 import { API_BASE_URL } from "../services/api";
+import { usePlayer } from "../context/PlayerContext";
 
 function Dashboard() {
 
     const [tracks, setTracks] = useState([]);
-    const [currentTrack, setCurrentTrack] = useState(null);
-
-    const user = JSON.parse(sessionStorage.getItem("user"));
+    const { playTrack } = usePlayer();
 
     useEffect(() => {
 
@@ -43,66 +39,32 @@ function Dashboard() {
 
         <div
             style={{
-                backgroundColor: "#000",
-                minHeight: "100vh",
                 color: "white",
-                overflowX: "hidden",
             }}
         >
 
-            <Sidebar />
+            {/* TRACK LIST */}
 
             <div
                 style={{
-                    marginLeft: "300px",
-                    padding: "40px",
-                    paddingBottom: "180px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "24px",
+                    maxWidth: "1100px",
                 }}
             >
 
-                {/* TOPBAR */}
+                {tracks.map((track) => (
 
-                <Topbar
-                    user={user}
-                    setUser={() => {
-                        sessionStorage.clear();
-                        window.location.href = "/login";
-                    }}
-                />
+                    <TrackCard
+                        key={track._id}
+                        track={track}
+                        onPlay={playTrack}
+                    />
 
-                {/* TRACK LIST */}
-
-                <div
-                    style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "24px",
-                        marginTop: "40px",
-                        maxWidth: "1100px",
-                    }}
-                >
-
-                    {tracks.map((track) => (
-
-                        <TrackCard
-                            key={track._id}
-                            track={track}
-                            onPlay={setCurrentTrack}
-                        />
-
-                    ))}
-
-                </div>
+                ))}
 
             </div>
-
-            {/* MUSIC PLAYER */}
-
-            {currentTrack && (
-
-                <MusicPlayer track={currentTrack} />
-
-            )}
 
         </div>
     );

@@ -6,6 +6,7 @@ import RegisterPage from "./pages/RegisterPage";
 import Dashboard from "./pages/Dashboard";
 import MyTracksPage from "./pages/MyTracksPage";
 import TrendingPage from "./pages/TrendingPage";
+import AppShell from "./app/AppShell";
 
 function App() {
 
@@ -29,19 +30,6 @@ function App() {
 
             <Routes>
 
-                {/* DEFAULT ROUTE */}
-
-                <Route
-                    path="/"
-                    element={
-                        user ? (
-                            <Navigate to="/library" />
-                        ) : (
-                            <Navigate to="/login" />
-                        )
-                    }
-                />
-
                 {/* LOGIN */}
 
                 <Route
@@ -56,39 +44,59 @@ function App() {
                     element={<RegisterPage />}
                 />
 
-                {/* DASHBOARD */}
+                {/* APP SHELL — persistent nav + player around every other route.
+                    Rendered as a layout route so AppShell (and the PlayerBar
+                    inside it) stays mounted across navigation between its
+                    child routes. */}
 
-                <Route
-                    path="/library"
-                    element={<Dashboard />}
-                />
+                <Route element={<AppShell user={user} setUser={setUser} />}>
 
-                <Route
-                    path="/home"
-                    element={<Dashboard />}
-                />
+                    {/* DEFAULT ROUTE */}
 
-                {/* TRENDING */}
+                    <Route
+                        path="/"
+                        element={
+                            user ? (
+                                <Navigate to="/library" />
+                            ) : (
+                                <Navigate to="/login" />
+                            )
+                        }
+                    />
 
-                <Route
-                    path="/trending"
-                    element={<TrendingPage />}
-                />
+                    {/* DASHBOARD */}
 
+                    <Route
+                        path="/library"
+                        element={<Dashboard />}
+                    />
 
+                    <Route
+                        path="/home"
+                        element={<Dashboard />}
+                    />
 
-                {/* MY TRACKS */}
+                    {/* TRENDING */}
 
-                <Route
-                    path="/my-tracks"
-                    element={
-                        user?.role === "ARTIST" ? (
-                            <MyTracksPage />
-                        ) : (
-                            <Navigate to="/library" />
-                        )
-                    }
-                />
+                    <Route
+                        path="/trending"
+                        element={<TrendingPage />}
+                    />
+
+                    {/* MY TRACKS */}
+
+                    <Route
+                        path="/my-tracks"
+                        element={
+                            user?.role === "ARTIST" ? (
+                                <MyTracksPage />
+                            ) : (
+                                <Navigate to="/library" />
+                            )
+                        }
+                    />
+
+                </Route>
 
                 {/* INVALID ROUTES */}
 
