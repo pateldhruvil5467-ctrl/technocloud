@@ -1,12 +1,15 @@
 const rateLimit = require("express-rate-limit");
+const config = require("../config/env");
 
 // Defaults chosen for a student/MVP deployment: generous enough not to
 // interfere with normal manual dev testing, tight enough to blunt a
 // scripted brute-force (login) or account-spam (register) attempt.
 // Overridable via env for deployment tuning or test speed — see
-// server/.env.example and tests/setup/globalSetup.js.
-const WINDOW_MS = Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000; // 15 minutes
-const MAX_ATTEMPTS = Number(process.env.AUTH_RATE_LIMIT_MAX) || 10;
+// server/.env.example and tests/setup/globalSetup.js. Now sourced from
+// central config (config/env.js) instead of reading process.env here
+// directly.
+const WINDOW_MS = config.authRateLimitWindowMs;
+const MAX_ATTEMPTS = config.authRateLimitMax;
 
 function rateLimitHandler(req, res) {
     res.status(429).json({

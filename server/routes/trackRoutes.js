@@ -8,6 +8,9 @@ const trackController = require("../controllers/trackController");
 const auth = require("../middleware/authMiddleware");
 const requireRole = require("../middleware/requireRole");
 const requireTrackOwnership = require("../middleware/requireTrackOwnership");
+const validateObjectId = require("../middleware/validateObjectId");
+const { validateTrackUploadBody, validateTrackUpdateBody } = require("../middleware/validateTrackBody");
+const config = require("../config/env");
 
 const storage = multer.diskStorage({
 
@@ -28,7 +31,9 @@ const storage = multer.diskStorage({
 // MVP upload limit: real sample tracks in this project are ~2-4MB
 // (server/uploads/, assets/). 20MB comfortably covers full-length MP3s
 // even at high bitrate, with headroom, while bounding worst-case abuse.
-const MAX_UPLOAD_BYTES = 20 * 1024 * 1024; // 20 MB
+// Now sourced from central config (config/env.js) instead of hardcoded
+// here — same 20MB default, overridable via UPLOAD_MAX_BYTES.
+const MAX_UPLOAD_BYTES = config.uploadMaxBytes;
 
 // MP3 is the only audio format used anywhere in this project (every
 // sample track and test fixture is .mp3) — treated as the currently
@@ -94,6 +99,10 @@ router.post(
     auth,
     requireRole(["ARTIST", "ADMIN"]),
     handleAudioUpload,
+    // Runs after handleAudioUpload deliberately — multer only populates
+    // req.body from the multipart form once it has parsed the request,
+    // so title/artist aren't readable any earlier in this chain.
+    validateTrackUploadBody,
     trackController.uploadTrack
 );
 
@@ -106,7 +115,9 @@ router.put(
     "/:id",
     auth,
     requireRole(["ARTIST", "ADMIN"]),
+    validateObjectId("id"),
     requireTrackOwnership,
+    validateTrackUpdateBody,
     trackController.updateTrack
 );
 
@@ -114,6 +125,7 @@ router.delete(
     "/:id",
     auth,
     requireRole(["ARTIST", "ADMIN"]),
+    validateObjectId("id"),
     requireTrackOwnership,
     trackController.deleteTrack
 );
