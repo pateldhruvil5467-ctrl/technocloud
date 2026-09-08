@@ -15,6 +15,7 @@ const artistRoutes = require("./routes/artistRoutes");
 const v1TrackRoutes = require("./routes/v1/trackRoutes");
 const v1HealthRoutes = require("./routes/v1/healthRoutes");
 const v1MeRoutes = require("./routes/v1/meRoutes");
+const v1ArtistRoutes = require("./routes/v1/artistRoutes");
 
 const app = express();
 
@@ -91,6 +92,7 @@ app.use("/api/artists", artistRoutes);
 app.use("/api/v1/tracks", v1TrackRoutes);
 app.use("/api/v1/health", v1HealthRoutes);
 app.use("/api/v1/me", v1MeRoutes);
+app.use("/api/v1/artists", v1ArtistRoutes);
 
 // TEST ROUTE
 

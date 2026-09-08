@@ -22,6 +22,8 @@ needed new capability this phase:
 - `GET /api/v1/health` — liveness/readiness
 - `GET /api/v1/me/tracks` — the authenticated artist's own catalog,
   paginated/filterable, regardless of visibility
+- `GET /api/v1/artists` — paginated, filterable, searchable artist
+  directory
 
 The legacy `/api/*` routes (`/api/auth`, `/api/tracks`, `/api/users`,
 `/api/artists`) are **unchanged** and remain in place as the
@@ -92,6 +94,46 @@ Response `200`: `{ artistProfile, tracks }` — `tracks` is filtered to
 `visibility: "public"` only.
 Errors: `400 { error: { code: "INVALID_ID", message } }` for a
 malformed id; `404 { message }` for a well-formed but nonexistent one.
+
+### Artists — v1
+
+**`GET /api/v1/artists`** — no auth. Paginated, filterable, searchable
+artist directory listing.
+
+Query parameters (all optional; unrecognized parameters are ignored,
+recognized ones are strictly validated — same whitelist/type-check
+philosophy as `GET /api/v1/tracks`, see "Security" below):
+
+| Parameter | Type                                          | Default  |
+|-----------|------------------------------------------------|----------|
+| `page`    | positive integer                                | `1`      |
+| `limit`   | integer, `1`–`100`                              | `20`     |
+| `sort`    | `newest` \| `oldest` \| `name_asc` \| `name_desc` | `newest` |
+| `genre`   | string — matches an entry in the artist's `genres` array, exact/case-sensitive | — |
+| `search`  | string, ≤100 chars — literal (escaped) substring match against `displayName` | — |
+
+Response `200`:
+```json
+{
+  "data": [ /* public-safe artist profile documents */ ],
+  "pagination": { "page": 1, "limit": 20, "total": 0, "pages": 0 }
+}
+```
+Note this envelope's shape is deliberately distinct from
+`GET /api/v1/tracks`'s (`pages` instead of `totalPages`, no
+`hasNextPage`/`hasPreviousPage`) — this is the exact contract this
+endpoint was built to, not an inconsistency to reconcile.
+
+**Response fields** — each artist document is an explicit projection
+(a MongoDB-level `.select()`, not post-fetch filtering), containing only:
+`_id`, `displayName`, `bio`, `avatarKey`, `genres`, `artistTypes`,
+`links`, `verified`, `createdAt`. `userId` — the internal reference to
+the owning `User` account — is never selected and can never appear in
+the response.
+
+Errors: `400 { error: { code: "VALIDATION_ERROR", message } }` for any
+parameter that fails validation (wrong type, out of range, not in its
+enum, or an empty `genre`/`search`).
 
 ### Tracks — legacy (unversioned — unchanged)
 
@@ -247,6 +289,13 @@ default plain-text 404 page.
   unconditionally overwritten with the server-resolved value in
   `controllers/v1/meController.js` before the query ever runs — the
   parsed value is never trusted, only ever discarded.
+- `GET /api/v1/artists` follows the same query whitelist/type-check and
+  regex-escaping rules as `GET /api/v1/tracks` (see
+  `middleware/validateArtistQuery.js`), and additionally never returns
+  `userId` — `services/artistService.js` selects an explicit public-field
+  list at the MongoDB query level, so no internal field can reach the
+  response regardless of what the `ArtistProfile` schema grows to
+  contain later.
 
 ## Known limitations / natural next steps
 
