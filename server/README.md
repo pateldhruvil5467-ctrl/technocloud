@@ -20,6 +20,8 @@ needed new capability this phase:
 
 - `GET /api/v1/tracks` — paginated, filterable, sortable track listing
 - `GET /api/v1/health` — liveness/readiness
+- `GET /api/v1/me/tracks` — the authenticated artist's own catalog,
+  paginated/filterable, regardless of visibility
 
 The legacy `/api/*` routes (`/api/auth`, `/api/tracks`, `/api/users`,
 `/api/artists`) are **unchanged** and remain in place as the
@@ -160,7 +162,44 @@ returns every visibility unfiltered), this endpoint defaults to
 `public`-only when `visibility` isn't specified — a deliberately safer
 default for a "canonical, going-forward" endpoint. An explicit
 `?visibility=draft` (etc.) still works, with no additional
-owner/authentication scoping yet — see Known Limitations.
+owner/authentication scoping — for that, see the next endpoint.
+
+### Tracks — v1, owner-scoped
+
+**`GET /api/v1/me/tracks`** — **auth required** (`Authorization` header,
+same raw-token convention as everywhere else), role `ARTIST` or `ADMIN`
+(matches the existing convention on `POST /api/tracks/upload` /
+`PUT` / `DELETE`).
+
+Returns only tracks owned by the **authenticated caller** — ownership is
+resolved entirely server-side (JWT → `req.user.id` → `ArtistProfile`
+lookup → that profile's tracks). No request body or query parameter can
+influence *whose* tracks are returned; a client-supplied `?artistId=`,
+`?owner=`, `?userId=`, or `?uploadedBy=` is either ignored outright (the
+first three aren't in the validated whitelist at all beyond `artistId`,
+which — see below — is always overwritten) or has no effect.
+
+Same query parameters as `GET /api/v1/tracks` (`page`, `limit`, `sort`,
+`genre`, `subgenre`, `isMix`, `visibility`, `search`), with one
+difference: **no default `visibility` filter**. Omitting `visibility`
+returns the artist's tracks in every state — `draft`, `public`,
+`unlisted`, `takedown` — since this is the owner managing their own
+catalog, not the public feed. An explicit `?visibility=draft` (etc.)
+still narrows it down.
+
+Response shape is identical to `GET /api/v1/tracks`:
+`{ data, pagination }`.
+
+Errors:
+- `401` — no/invalid token
+- `403` — authenticated but not `ARTIST`/`ADMIN`
+- `404 { error: { code: "ARTIST_PROFILE_NOT_FOUND" } }` — authenticated
+  as `ARTIST`/`ADMIN` but no `ArtistProfile` exists yet for this
+  account. Deliberately **not** auto-created here — a `GET` shouldn't
+  have that side effect; profile creation stays exclusive to the upload
+  flow (`trackController.uploadTrack`).
+- `400 { error: { code: "VALIDATION_ERROR" } }` — same query validation
+  as the public endpoint.
 
 ## Error format
 
@@ -202,14 +241,23 @@ default plain-text 404 page.
   authenticated identity (see `trackController.uploadTrack`,
   `requireTrackOwnership.js`). Adding request validation this phase did
   not change or widen any controller's field allowlist.
+- `GET /api/v1/me/tracks` resolves ownership the same way: a
+  client-supplied `?artistId=` is parsed by the shared query validator
+  (so a malformed one still gets a clean 400) but is then
+  unconditionally overwritten with the server-resolved value in
+  `controllers/v1/meController.js` before the query ever runs — the
+  parsed value is never trusted, only ever discarded.
 
 ## Known limitations / natural next steps
 
-- `GET /api/v1/tracks?visibility=draft` (etc.) has no owner-scoped
-  authentication — it's currently exactly as open as the legacy
-  endpoint for any explicitly-requested visibility. A real "my tracks"
-  endpoint (scoped to the authenticated artist) is a reasonable next
-  step once the frontend Studio actually needs one.
+- `GET /api/v1/tracks?visibility=draft` (etc.) still has no owner-scoped
+  authentication — it's exactly as open as the legacy endpoint for any
+  explicitly-requested visibility. Use `GET /api/v1/me/tracks` for the
+  authenticated, owner-scoped equivalent (added — see above). The
+  frontend Studio (`client/src/pages/StudioPage.js`) does not consume it
+  yet; it still fetches everything from `GET /api/tracks` and filters by
+  `artistId` client-side. Migrating it is a separate, frontend-only
+  follow-up.
 - Full-text `search` is a plain, escaped, case-insensitive regex match
   against `title`/`artist`. This is appropriate at the current catalog
   size; MongoDB Atlas Search (or a native `$text` index) is the

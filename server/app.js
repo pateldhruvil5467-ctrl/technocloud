@@ -14,6 +14,7 @@ const artistRoutes = require("./routes/artistRoutes");
 
 const v1TrackRoutes = require("./routes/v1/trackRoutes");
 const v1HealthRoutes = require("./routes/v1/healthRoutes");
+const v1MeRoutes = require("./routes/v1/meRoutes");
 
 const app = express();
 
@@ -81,12 +82,15 @@ app.use("/api/artists", artistRoutes);
 //
 // /api/v1/* is the canonical API going forward. It does not yet
 // duplicate every legacy resource — only what actually needed new
-// capability this phase (paginated/filterable track listing, health).
-// See server/README.md's versioning-strategy section for the full
-// reasoning. The legacy /api/* routes above are unchanged and remain
-// the compatibility layer the existing frontend still uses.
+// capability this phase (paginated/filterable track listing, health,
+// and now an owner-scoped "my tracks" endpoint for the Artist Studio —
+// see routes/v1/meRoutes.js). See server/README.md's versioning-strategy
+// section for the full reasoning. The legacy /api/* routes above are
+// unchanged and remain the compatibility layer the existing frontend
+// still uses.
 app.use("/api/v1/tracks", v1TrackRoutes);
 app.use("/api/v1/health", v1HealthRoutes);
+app.use("/api/v1/me", v1MeRoutes);
 
 // TEST ROUTE
 

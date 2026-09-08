@@ -8,6 +8,10 @@ const validateTrackQuery = require("../../middleware/validateTrackQuery");
 // track listing. Public, same as the legacy GET /api/tracks. Does not
 // (yet) duplicate upload/update/delete — see server/README.md's
 // versioning-strategy section for why.
-router.get("/", validateTrackQuery, trackController.listTracks);
+//
+// validateTrackQuery is a factory (see middleware/validateTrackQuery.js)
+// — called here with no arguments, which keeps its original default
+// (public-only when visibility isn't specified) exactly as before.
+router.get("/", validateTrackQuery(), trackController.listTracks);
 
 module.exports = router;

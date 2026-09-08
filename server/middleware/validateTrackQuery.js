@@ -1,10 +1,11 @@
 const mongoose = require("mongoose");
 const AppError = require("../utils/AppError");
 
-// Validates and normalizes GET /api/v1/tracks query parameters into
-// req.trackQuery, for services/trackService.js to consume directly —
-// the service never reads req.query itself, so it's structurally
-// impossible for it to spread an unvalidated value into a Mongo filter.
+// Validates and normalizes GET /api/v1/tracks (and GET /api/v1/me/tracks)
+// query parameters into req.trackQuery, for services/trackService.js to
+// consume directly — the service never reads req.query itself, so it's
+// structurally impossible for it to spread an unvalidated value into a
+// Mongo filter.
 //
 // The `typeof raw.X !== "string"` checks below are the actual injection
 // guard, verified against this app's real query parser (Express 5's
@@ -29,109 +30,127 @@ function isPositiveIntegerString(value) {
     return typeof value === "string" && /^\d+$/.test(value);
 }
 
-function validateTrackQuery(req, res, next) {
-    const raw = req.query;
+// A factory, not a bare middleware, so a second caller with different
+// default-visibility semantics (GET /api/v1/me/tracks — see
+// routes/v1/meRoutes.js) can reuse every whitelist/type check here
+// without copying them. `defaultVisibility: "public"` (the original,
+// unchanged behavior) is what GET /api/v1/tracks gets by calling this
+// with no arguments; pass `defaultVisibility: null` to leave
+// `visibility` out of the filter entirely when the caller doesn't
+// specify one — appropriate for an owner-scoped endpoint where the
+// default should be "everything I own," not "only what the public can
+// see."
+function validateTrackQuery({ defaultVisibility = "public" } = {}) {
+    return function (req, res, next) {
+        const raw = req.query;
 
-    let page = 1;
-    if (raw.page !== undefined) {
-        if (!isPositiveIntegerString(raw.page) || Number(raw.page) < 1) {
-            return next(new AppError(400, "VALIDATION_ERROR", "page must be a positive integer."));
+        let page = 1;
+        if (raw.page !== undefined) {
+            if (!isPositiveIntegerString(raw.page) || Number(raw.page) < 1) {
+                return next(new AppError(400, "VALIDATION_ERROR", "page must be a positive integer."));
+            }
+            page = Number(raw.page);
         }
-        page = Number(raw.page);
-    }
 
-    let limit = DEFAULT_LIMIT;
-    if (raw.limit !== undefined) {
-        if (!isPositiveIntegerString(raw.limit)) {
-            return next(new AppError(400, "VALIDATION_ERROR", "limit must be a positive integer."));
+        let limit = DEFAULT_LIMIT;
+        if (raw.limit !== undefined) {
+            if (!isPositiveIntegerString(raw.limit)) {
+                return next(new AppError(400, "VALIDATION_ERROR", "limit must be a positive integer."));
+            }
+            limit = Number(raw.limit);
+            if (limit < 1 || limit > MAX_LIMIT) {
+                return next(
+                    new AppError(400, "VALIDATION_ERROR", `limit must be between 1 and ${MAX_LIMIT}.`)
+                );
+            }
         }
-        limit = Number(raw.limit);
-        if (limit < 1 || limit > MAX_LIMIT) {
-            return next(
-                new AppError(400, "VALIDATION_ERROR", `limit must be between 1 and ${MAX_LIMIT}.`)
-            );
+
+        let sort = "newest";
+        if (raw.sort !== undefined) {
+            if (typeof raw.sort !== "string" || !SORT_VALUES.includes(raw.sort)) {
+                return next(
+                    new AppError(400, "VALIDATION_ERROR", `sort must be one of: ${SORT_VALUES.join(", ")}.`)
+                );
+            }
+            sort = raw.sort;
         }
-    }
 
-    let sort = "newest";
-    if (raw.sort !== undefined) {
-        if (typeof raw.sort !== "string" || !SORT_VALUES.includes(raw.sort)) {
-            return next(
-                new AppError(400, "VALIDATION_ERROR", `sort must be one of: ${SORT_VALUES.join(", ")}.`)
-            );
+        const filter = {};
+
+        if (raw.genre !== undefined) {
+            if (
+                typeof raw.genre !== "string" ||
+                raw.genre.length === 0 ||
+                raw.genre.length > MAX_STRING_FILTER_LENGTH
+            ) {
+                return next(new AppError(400, "VALIDATION_ERROR", "genre must be a non-empty string."));
+            }
+            filter.genre = raw.genre;
         }
-        sort = raw.sort;
-    }
 
-    const filter = {};
-
-    if (raw.genre !== undefined) {
-        if (typeof raw.genre !== "string" || raw.genre.length === 0 || raw.genre.length > MAX_STRING_FILTER_LENGTH) {
-            return next(new AppError(400, "VALIDATION_ERROR", "genre must be a non-empty string."));
+        if (raw.subgenre !== undefined) {
+            if (
+                typeof raw.subgenre !== "string" ||
+                raw.subgenre.length === 0 ||
+                raw.subgenre.length > MAX_STRING_FILTER_LENGTH
+            ) {
+                return next(new AppError(400, "VALIDATION_ERROR", "subgenre must be a non-empty string."));
+            }
+            filter.subgenre = raw.subgenre;
         }
-        filter.genre = raw.genre;
-    }
 
-    if (raw.subgenre !== undefined) {
-        if (
-            typeof raw.subgenre !== "string" ||
-            raw.subgenre.length === 0 ||
-            raw.subgenre.length > MAX_STRING_FILTER_LENGTH
-        ) {
-            return next(new AppError(400, "VALIDATION_ERROR", "subgenre must be a non-empty string."));
+        if (raw.artistId !== undefined) {
+            if (typeof raw.artistId !== "string" || !mongoose.Types.ObjectId.isValid(raw.artistId)) {
+                return next(new AppError(400, "VALIDATION_ERROR", "artistId must be a valid id."));
+            }
+            filter.artistId = raw.artistId;
         }
-        filter.subgenre = raw.subgenre;
-    }
 
-    if (raw.artistId !== undefined) {
-        if (typeof raw.artistId !== "string" || !mongoose.Types.ObjectId.isValid(raw.artistId)) {
-            return next(new AppError(400, "VALIDATION_ERROR", "artistId must be a valid id."));
+        if (raw.isMix !== undefined) {
+            if (typeof raw.isMix !== "string" || !["true", "false"].includes(raw.isMix.toLowerCase())) {
+                return next(new AppError(400, "VALIDATION_ERROR", 'isMix must be "true" or "false".'));
+            }
+            filter.isMix = raw.isMix.toLowerCase() === "true";
         }
-        filter.artistId = raw.artistId;
-    }
 
-    if (raw.isMix !== undefined) {
-        if (typeof raw.isMix !== "string" || !["true", "false"].includes(raw.isMix.toLowerCase())) {
-            return next(new AppError(400, "VALIDATION_ERROR", 'isMix must be "true" or "false".'));
+        if (raw.visibility !== undefined) {
+            if (typeof raw.visibility !== "string" || !VISIBILITY_VALUES.includes(raw.visibility)) {
+                return next(
+                    new AppError(400, "VALIDATION_ERROR", `visibility must be one of: ${VISIBILITY_VALUES.join(", ")}.`)
+                );
+            }
+            filter.visibility = raw.visibility;
+        } else if (defaultVisibility) {
+            // GET /api/v1/tracks: defaults to public-only — deliberately
+            // safer than the legacy /api/tracks endpoint, which returns
+            // every visibility unfiltered. GET /api/v1/me/tracks passes
+            // defaultVisibility: null, so this branch is skipped there
+            // and `filter.visibility` stays unset, matching every
+            // visibility the owner actually has — see meRoutes.js.
+            filter.visibility = defaultVisibility;
         }
-        filter.isMix = raw.isMix.toLowerCase() === "true";
-    }
 
-    if (raw.visibility !== undefined) {
-        if (typeof raw.visibility !== "string" || !VISIBILITY_VALUES.includes(raw.visibility)) {
-            return next(
-                new AppError(400, "VALIDATION_ERROR", `visibility must be one of: ${VISIBILITY_VALUES.join(", ")}.`)
-            );
+        let search;
+        if (raw.search !== undefined) {
+            if (
+                typeof raw.search !== "string" ||
+                raw.search.length === 0 ||
+                raw.search.length > MAX_SEARCH_LENGTH
+            ) {
+                return next(
+                    new AppError(
+                        400,
+                        "VALIDATION_ERROR",
+                        `search must be a non-empty string of ${MAX_SEARCH_LENGTH} characters or fewer.`
+                    )
+                );
+            }
+            search = raw.search;
         }
-        filter.visibility = raw.visibility;
-    } else {
-        // Default to public-only when no explicit visibility is
-        // requested — deliberately safer than the legacy /api/tracks
-        // endpoint, which returns every visibility unfiltered (a
-        // pre-existing quirk this new endpoint does not inherit). An
-        // explicit ?visibility=draft/unlisted/takedown still works for a
-        // future owner-scoped use case; there is no additional
-        // authentication/ownership check on that yet — see the README's
-        // known-limitations note.
-        filter.visibility = "public";
-    }
 
-    let search;
-    if (raw.search !== undefined) {
-        if (typeof raw.search !== "string" || raw.search.length === 0 || raw.search.length > MAX_SEARCH_LENGTH) {
-            return next(
-                new AppError(
-                    400,
-                    "VALIDATION_ERROR",
-                    `search must be a non-empty string of ${MAX_SEARCH_LENGTH} characters or fewer.`
-                )
-            );
-        }
-        search = raw.search;
-    }
-
-    req.trackQuery = { page, limit, sort, filter, search };
-    next();
+        req.trackQuery = { page, limit, sort, filter, search };
+        next();
+    };
 }
 
 module.exports = validateTrackQuery;
