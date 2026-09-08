@@ -22,7 +22,7 @@ import {
 
 const PRIMARY_ITEMS = [
     { key: "home", label: "Home", to: "/home", icon: FiHome },
-    { key: "discover", label: "Discover", icon: FiCompass, comingSoon: true },
+    { key: "discover", label: "Discover", to: "/discover", icon: FiCompass },
     { key: "library", label: "Library", to: "/library", icon: FiHeadphones },
 ];
 

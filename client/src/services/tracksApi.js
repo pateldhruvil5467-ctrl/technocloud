@@ -76,6 +76,37 @@ export async function getMyTracks(params = {}) {
     return res.data;
 }
 
+// The only Discovery-relevant query keys GET /api/v1/tracks accepts (see
+// server/README.md's "Tracks — v1" section). `visibility` is deliberately
+// NOT in this list — Discovery is public browsing, and the endpoint's own
+// public-only default is exactly what Discovery should always get; there
+// is no legitimate reason for this page to ever request
+// draft/unlisted/takedown content. Building the request from this fixed
+// whitelist (rather than forwarding whatever the caller passes) makes
+// that a structural guarantee, not just a convention callers have to
+// remember.
+const SEARCH_PARAM_KEYS = ["search", "genre", "subgenre", "isMix", "sort", "page", "limit"];
+
+/*
+ * Public track search/discovery (V3.1). Calls GET /api/v1/tracks — the
+ * same paginated/filterable/sortable engine already documented in
+ * server/README.md, unauthenticated, returning { data, pagination }
+ * unchanged (no shape transformation here — callers read `.data` /
+ * `.pagination` directly, same convention as getMyTracks).
+ */
+export async function searchTracks(params = {}, { signal } = {}) {
+    const query = {};
+    for (const key of SEARCH_PARAM_KEYS) {
+        const value = params[key];
+        if (value !== undefined && value !== null && value !== "") {
+            query[key] = value;
+        }
+    }
+
+    const res = await axios.get(`${API_BASE_URL}/api/v1/tracks`, { params: query, signal });
+    return res.data;
+}
+
 export async function uploadTrack(formData) {
     const res = await axios.post(`${API_BASE_URL}/api/tracks/upload`, formData, {
         headers: authHeaders(),

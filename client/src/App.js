@@ -6,6 +6,7 @@ import RegisterPage from "./pages/RegisterPage";
 import Dashboard from "./pages/Dashboard";
 import StudioPage from "./pages/StudioPage";
 import TrendingPage from "./pages/TrendingPage";
+import DiscoverPage from "./pages/DiscoverPage";
 import HomePage from "./pages/HomePage";
 import TrackDetailPage from "./pages/TrackDetailPage";
 import ArtistProfilePage from "./pages/ArtistProfilePage";
@@ -86,6 +87,17 @@ function App() {
                         <Route
                             path="/home"
                             element={<HomePage />}
+                        />
+
+                        {/* DISCOVER — V3.1. Public track search/browse
+                            (GET /api/v1/tracks); gated behind RequireAuth
+                            like every other AppShell route, matching Home/
+                            Library's existing pattern even though the
+                            underlying API itself needs no auth. */}
+
+                        <Route
+                            path="/discover"
+                            element={<DiscoverPage />}
                         />
 
                         {/* TRACK DETAIL — Phase UI.3 */}
