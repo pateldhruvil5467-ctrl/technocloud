@@ -43,19 +43,38 @@ function authHeaders() {
 }
 
 /*
- * The following three calls back the Artist Studio (Phase UI.4). Each
- * mirrors the real backend contract exactly (server/routes/trackRoutes.js,
- * server/controllers/trackController.js) rather than a hoped-for one:
+ * The following calls back the Artist Studio (Phase UI.4 / V.3
+ * migration to the owner-scoped endpoint). Each mirrors the real
+ * backend contract exactly (server/routes/trackRoutes.js,
+ * server/routes/v1/meRoutes.js, server/controllers/trackController.js)
+ * rather than a hoped-for one:
  *
  * - uploadTrack only ever accepts title/artist/audio — the controller
  *   silently ignores anything else sent at upload time.
  * - updateTrack's allowlist is exactly title/artist/genre/subgenre/tags/
  *   isMix/visibility; callers should only ever pass those keys.
- * - There is no GET /api/tracks/mine — "my tracks" is the same
- *   client-side filter pattern as getTrackById above, done by the
- *   caller (StudioPage) using getTracks() plus the caller's own
- *   ArtistProfile id from GET /api/users/me.
+ * - getMyTracks calls GET /api/v1/me/tracks — the server resolves
+ *   ownership entirely from the caller's JWT (see
+ *   server/middleware/resolveOwnArtistProfile.js); this function never
+ *   sends an artistId or any other ownership field. The frontend has no
+ *   authority over whose tracks come back, only the server does.
  */
+
+/*
+ * Returns the authenticated artist's own tracks (every visibility —
+ * public/draft/unlisted/takedown — since this is for Studio management,
+ * not the public feed) as { data, pagination }, not a bare array; see
+ * server/README.md's "Tracks — v1, owner-scoped" section for the exact
+ * contract. Callers that just want the track list should read
+ * `.data` off the result rather than assuming an array response.
+ */
+export async function getMyTracks(params = {}) {
+    const res = await axios.get(`${API_BASE_URL}/api/v1/me/tracks`, {
+        headers: authHeaders(),
+        params,
+    });
+    return res.data;
+}
 
 export async function uploadTrack(formData) {
     const res = await axios.post(`${API_BASE_URL}/api/tracks/upload`, formData, {

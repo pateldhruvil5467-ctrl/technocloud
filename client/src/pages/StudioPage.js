@@ -7,32 +7,48 @@ import UploadTrackForm from "../features/studio/UploadTrackForm";
 import TrackEditor from "../features/studio/TrackEditor";
 import DeleteTrackDialog from "../features/studio/DeleteTrackDialog";
 import { getMe } from "../services/usersApi";
-import { getTracks } from "../services/tracksApi";
+import { getMyTracks } from "../services/tracksApi";
 import { usePlayer } from "../context/PlayerContext";
 import Button from "../components/primitives/Button";
 import Skeleton from "../components/primitives/Skeleton";
 import EmptyState from "../components/primitives/EmptyState";
 import ErrorState from "../components/primitives/ErrorState";
 
+// Studio has no pagination UI of its own — it previously showed an
+// artist's entire (unpaginated) catalog, and this keeps that behavior
+// intact against the now-paginated endpoint. 100 is that endpoint's own
+// maximum (see server/middleware/validateTrackQuery.js), comfortably
+// covering any realistic artist catalog without inventing real
+// pagination controls this phase didn't ask for.
+const MY_TRACKS_LIMIT = 100;
+
 /*
- * StudioPage — Phase UI.4, the authenticated Artist Studio at
- * /my-tracks (route gated in App.js: user?.role === "ARTIST" only —
- * that gate is a UX convenience, not the real security boundary; the
- * backend enforces who may actually upload/edit/delete via requireRole
- * and requireTrackOwnership regardless of what this page renders).
+ * StudioPage — migrated to GET /api/v1/me/tracks (V.3). Ownership is now
+ * entirely the server's responsibility: the client never sends or
+ * compares an artistId to decide which tracks belong to the signed-in
+ * artist — it just asks "my tracks," and the server can only ever
+ * answer that question about the authenticated caller (see
+ * server/middleware/resolveOwnArtistProfile.js). Previously this page
+ * fetched the ENTIRE public track collection via getTracks() and
+ * filtered client-side by artistId — that filter is gone; nothing
+ * client-side scopes ownership anymore.
  *
- * There is no GET /api/tracks/mine endpoint. "My tracks" is computed
- * client-side the same way getTrackById already does it in
- * services/tracksApi.js: fetch everything from GET /api/tracks (which,
- * unlike the public feed pages, is unfiltered by visibility — see
- * trackController.getTracks — so this correctly includes the artist's
- * own drafts/unlisted/taken-down tracks too) and keep only the ones
- * whose artistId matches the caller's own ArtistProfile, obtained from
- * GET /api/users/me.
+ * getMe() is still used here, unrelated to that removed filter — it's
+ * the source of the artist's own displayName/avatarKey for
+ * StudioHeader, and its `artistProfile` presence is also how this page
+ * tells a genuinely brand-new artist (no ArtistProfile yet — normal;
+ * every artist starts here, before their first upload) apart from one
+ * with an empty catalog. getMyTracks() is deliberately not called in
+ * the no-profile case: it would just 404 (ARTIST_PROFILE_NOT_FOUND) for
+ * an entirely expected state, and a generic "couldn't load, retry"
+ * ErrorState would be actively misleading there (retrying gets the same
+ * 404) — the existing "haven't uploaded anything yet" EmptyState is the
+ * correct, meaningful response, so that's what a missing profile still
+ * produces, exactly as before this migration.
  */
 function StudioPage() {
     const [me, setMe] = useState(null);
-    const [allTracks, setAllTracks] = useState([]);
+    const [tracks, setTracks] = useState([]);
     const [status, setStatus] = useState("loading"); // loading | ready | error
 
     const [showUpload, setShowUpload] = useState(false);
@@ -48,11 +64,28 @@ function StudioPage() {
     const load = useCallback(async ({ silent = false } = {}) => {
         if (!silent) setStatus("loading");
         try {
-            const [meData, tracksData] = await Promise.all([getMe(), getTracks()]);
+            const meData = await getMe();
             setMe(meData);
-            setAllTracks(tracksData);
+
+            if (meData.artistProfile) {
+                const result = await getMyTracks({ limit: MY_TRACKS_LIMIT });
+                setTracks(result.data);
+            } else {
+                setTracks([]);
+            }
+
             setStatus("ready");
         } catch (error) {
+            // A 404 here can only mean the ArtistProfile disappeared
+            // between the two calls above (no deletion path exists for
+            // it today, so this is a defensive fallback, not an expected
+            // path) — treated the same as "no profile yet": a genuinely
+            // empty studio, not a failure.
+            if (error.response?.data?.error?.code === "ARTIST_PROFILE_NOT_FOUND") {
+                setTracks([]);
+                setStatus("ready");
+                return;
+            }
             if (!silent) setStatus("error");
         }
     }, []);
@@ -62,9 +95,6 @@ function StudioPage() {
     }, [load]);
 
     const artistProfile = me?.artistProfile;
-    const myTracks = artistProfile
-        ? allTracks.filter((track) => track.artistId === artistProfile._id)
-        : [];
 
     function handleUploaded() {
         setShowUpload(false);
@@ -121,7 +151,7 @@ function StudioPage() {
                 avatarKey={artistProfile?.avatarKey}
             />
 
-            <StudioStats tracks={myTracks} />
+            <StudioStats tracks={tracks} />
 
             <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between gap-4">
@@ -137,7 +167,7 @@ function StudioPage() {
                     <UploadTrackForm onUploaded={handleUploaded} onCancel={() => setShowUpload(false)} />
                 )}
 
-                {myTracks.length === 0 ? (
+                {tracks.length === 0 ? (
                     <EmptyState
                         message="You haven't uploaded any tracks yet."
                         action={
@@ -149,7 +179,7 @@ function StudioPage() {
                         }
                     />
                 ) : (
-                    <StudioTrackList tracks={myTracks} onEdit={setEditingTrack} onDelete={setDeletingTrack} />
+                    <StudioTrackList tracks={tracks} onEdit={setEditingTrack} onDelete={setDeletingTrack} />
                 )}
             </div>
 
