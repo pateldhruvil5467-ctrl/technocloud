@@ -46,6 +46,17 @@ const config = Object.freeze({
     authRateLimitWindowMs:
         Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
     authRateLimitMax: Number(process.env.AUTH_RATE_LIMIT_MAX) || 10,
+
+    // V3.3: throttles the public discovery/search listing endpoints
+    // (GET /api/v1/tracks, GET /api/v1/artists) — the most request-heavy
+    // public read path in the app (see services/trackService.js /
+    // artistService.js's escaped-regex search). Same 15-minute window as
+    // the auth limiter for consistency, but a much higher default ceiling
+    // — this gates scripted abuse, not normal browsing/searching, which
+    // can easily fire a few dozen requests in a single session.
+    publicReadRateLimitWindowMs:
+        Number(process.env.PUBLIC_READ_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+    publicReadRateLimitMax: Number(process.env.PUBLIC_READ_RATE_LIMIT_MAX) || 300,
 });
 
 module.exports = config;

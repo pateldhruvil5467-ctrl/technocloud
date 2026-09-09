@@ -185,19 +185,67 @@ describe("GET /api/v1/tracks — filtering", () => {
         expect(res.body.data[0].visibility).toBe("public");
     });
 
-    it("honors an explicit visibility filter", async () => {
-        await seedTracks(1, { visibility: "public" });
-        await seedTracks(1, { visibility: "draft" });
-
-        const res = await request(app).get("/api/v1/tracks?visibility=draft");
-
-        expect(res.body.data).toHaveLength(1);
-        expect(res.body.data[0].visibility).toBe("draft");
-    });
-
     it("rejects an invalid visibility value", async () => {
         const res = await request(app).get("/api/v1/tracks?visibility=nonsense");
         expect(res.status).toBe(400);
+    });
+
+    // V3.3 — GET /api/v1/tracks is public discovery and can never return
+    // a non-public track, for anyone, regardless of what is explicitly
+    // requested. This replaces the old "honors an explicit visibility
+    // filter" test, which asserted the opposite (and less secure)
+    // behavior: that an unauthenticated caller could request
+    // ?visibility=draft/unlisted/takedown and receive matching tracks
+    // from ANY artist. Owner-scoped access to non-public tracks now
+    // belongs exclusively to the authenticated GET /api/v1/me/tracks
+    // (see meTracks.test.js — completely unaffected by this change).
+    it("explicit ?visibility=public still succeeds and returns public tracks", async () => {
+        await seedTracks(1, { visibility: "public" });
+        await seedTracks(1, { visibility: "draft" });
+
+        const res = await request(app).get("/api/v1/tracks?visibility=public");
+
+        expect(res.status).toBe(200);
+        expect(res.body.data).toHaveLength(1);
+        expect(res.body.data[0].visibility).toBe("public");
+    });
+
+    it.each(["draft", "unlisted", "takedown"])(
+        "rejects an explicit ?visibility=%s with a clean 400, never returning matching tracks",
+        async (visibility) => {
+            await seedTracks(1, { visibility });
+
+            const res = await request(app).get(`/api/v1/tracks?visibility=${visibility}`);
+
+            expect(res.status).toBe(400);
+            expect(res.body.error.code).toBe("VALIDATION_ERROR");
+        }
+    );
+
+    it("can never expose draft, unlisted, or takedown tracks under any circumstance", async () => {
+        await seedTracks(1, { visibility: "public" });
+        await seedTracks(1, { visibility: "draft" });
+        await seedTracks(1, { visibility: "unlisted" });
+        await seedTracks(1, { visibility: "takedown" });
+
+        // No visibility param, explicit public, and every rejected
+        // explicit non-public value (400, no data returned at all) — none
+        // of these request shapes may ever surface a non-public track.
+        const implicit = await request(app).get("/api/v1/tracks");
+        const explicitPublic = await request(app).get("/api/v1/tracks?visibility=public");
+        const explicitDraft = await request(app).get("/api/v1/tracks?visibility=draft");
+        const explicitUnlisted = await request(app).get("/api/v1/tracks?visibility=unlisted");
+        const explicitTakedown = await request(app).get("/api/v1/tracks?visibility=takedown");
+
+        for (const res of [implicit, explicitPublic]) {
+            expect(res.status).toBe(200);
+            expect(res.body.data.every((t) => t.visibility === "public")).toBe(true);
+        }
+
+        for (const res of [explicitDraft, explicitUnlisted, explicitTakedown]) {
+            expect(res.status).toBe(400);
+            expect(res.body.data).toBeUndefined();
+        }
     });
 
     it("matches title/artist substrings via search", async () => {

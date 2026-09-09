@@ -34,4 +34,17 @@ module.exports = async function globalSetup() {
     // 5 is the only value satisfying all of the above, with headroom to
     // spare for auth.test.js and tracks.test.js.
     process.env.AUTH_RATE_LIMIT_MAX = "5";
+
+    // Same reasoning, for the V3.3 public-read limiter (GET /api/v1/tracks,
+    // GET /api/v1/artists — one shared instance/counter per test file,
+    // same per-file isolation as above). Unlike the auth limiter, this one
+    // can't be as small as 5: tracksV1.test.js alone makes ~24 real
+    // requests to GET /api/v1/tracks across its full suite, and
+    // artistsV1.test.js makes ~29 to GET /api/v1/artists — both would
+    // start getting spuriously 429'd well before their own last test with
+    // a tiny threshold. 40 stays comfortably above both real counts (with
+    // headroom for tracksV1.test.js's V3.3 visibility-rewrite additions)
+    // while still letting publicReadRateLimit.test.js trigger a real 429
+    // with a fast, bounded burst instead of the production default (300).
+    process.env.PUBLIC_READ_RATE_LIMIT_MAX = "40";
 };

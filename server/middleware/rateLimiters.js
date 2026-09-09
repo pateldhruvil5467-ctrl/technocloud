@@ -33,4 +33,18 @@ const registerLimiter = rateLimit({
     handler: rateLimitHandler,
 });
 
-module.exports = { loginLimiter, registerLimiter };
+// V3.3 — public-read limiter for the discovery/search listing endpoints
+// (GET /api/v1/tracks, GET /api/v1/artists). Shared by both routes (one
+// instance, one counter per IP) — deliberately generous compared to the
+// auth limiters above, since this gates browsing/search traffic, not a
+// login form. See config/env.js for the PUBLIC_READ_RATE_LIMIT_* env
+// vars and their defaults.
+const publicReadLimiter = rateLimit({
+    windowMs: config.publicReadRateLimitWindowMs,
+    max: config.publicReadRateLimitMax,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: rateLimitHandler,
+});
+
+module.exports = { loginLimiter, registerLimiter, publicReadLimiter };

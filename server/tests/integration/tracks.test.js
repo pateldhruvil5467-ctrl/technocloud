@@ -370,6 +370,25 @@ describe("GET /api/users/me and GET /api/artists/:id (Phase A.1)", () => {
         const res = await request(app).get("/api/artists/000000000000000000000000");
         expect(res.status).toBe(404);
     });
+
+    it("never exposes userId (V3.3 hardening — legacy artist profile projection)", async () => {
+        const token = await createUserAndLogin("ARTIST");
+        await uploadTrackAs(token, { title: "Projection Trigger" });
+
+        const profile = await ArtistProfile.findOne({
+            userId: identityCache.ARTIST.userId,
+        });
+
+        const res = await request(app).get(`/api/artists/${profile._id}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.artistProfile.userId).toBeUndefined();
+        expect(JSON.stringify(res.body)).not.toMatch(/userId/i);
+
+        // The public fields the endpoint is still expected to return.
+        expect(res.body.artistProfile._id).toBe(profile._id.toString());
+        expect(res.body.artistProfile.displayName).toBeDefined();
+    });
 });
 
 describe("Track ownership — update/delete (Phase A.1)", () => {

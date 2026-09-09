@@ -98,7 +98,8 @@ malformed id; `404 { message }` for a well-formed but nonexistent one.
 ### Artists — v1
 
 **`GET /api/v1/artists`** — no auth. Paginated, filterable, searchable
-artist directory listing.
+artist directory listing. Rate-limited (see `PUBLIC_READ_RATE_LIMIT_*`,
+shared with `GET /api/v1/tracks`).
 
 Query parameters (all optional; unrecognized parameters are ignored,
 recognized ones are strictly validated — same whitelist/type-check
@@ -163,7 +164,8 @@ invalid body value, `403 { message }` for a role/ownership failure,
 
 ### Tracks — v1
 
-**`GET /api/v1/tracks`** — no auth.
+**`GET /api/v1/tracks`** — no auth. Public discovery — rate-limited (see
+`PUBLIC_READ_RATE_LIMIT_*`, shared with `GET /api/v1/artists`).
 
 Query parameters (all optional; unrecognized parameters are ignored,
 recognized ones are strictly validated — see "Security" below):
@@ -177,7 +179,7 @@ recognized ones are strictly validated — see "Security" below):
 | `subgenre`   | string                                                   | —        |
 | `artistId`   | valid ObjectId                                           | —        |
 | `isMix`      | `"true"` \| `"false"`                                    | —        |
-| `visibility` | `draft` \| `public` \| `unlisted` \| `takedown`           | `public` |
+| `visibility` | `public` only — any other value is rejected (`400`), see below | `public` |
 | `search`     | string, ≤100 chars — literal (escaped) substring match against `title`/`artist` | — |
 
 Response `200`:
@@ -199,12 +201,17 @@ Errors: `400 { error: { code: "VALIDATION_ERROR", message } }` for any
 parameter that fails validation (wrong type, out of range, not in its
 enum).
 
-**Note on `visibility` default:** unlike the legacy endpoint (which
-returns every visibility unfiltered), this endpoint defaults to
-`public`-only when `visibility` isn't specified — a deliberately safer
-default for a "canonical, going-forward" endpoint. An explicit
-`?visibility=draft` (etc.) still works, with no additional
-owner/authentication scoping — for that, see the next endpoint.
+**Note on `visibility` (V3.3):** unlike the legacy endpoint (which
+returns every visibility unfiltered), this endpoint only ever exposes
+`public` tracks — this is a hard restriction, not just a default.
+Omitting `visibility` returns public tracks; an explicit
+`?visibility=public` is equivalent and also succeeds; an explicit
+`?visibility=draft`, `?visibility=unlisted`, or `?visibility=takedown`
+is rejected outright with `400 { error: { code: "VALIDATION_ERROR" } }`.
+This endpoint can never return a non-public track, to anyone, regardless
+of what is requested — there is no way to reach draft/unlisted/takedown
+content through it. For authenticated, owner-scoped access to your own
+non-public tracks, see the next endpoint.
 
 ### Tracks — v1, owner-scoped
 
@@ -296,17 +303,25 @@ default plain-text 404 page.
   list at the MongoDB query level, so no internal field can reach the
   response regardless of what the `ArtistProfile` schema grows to
   contain later.
+- The legacy `GET /api/artists/:id` uses the same explicit public-field
+  projection (V3.3) — it previously returned the raw `ArtistProfile`
+  document, which included `userId`; it no longer does.
+- `GET /api/v1/tracks` can never return a non-public track (V3.3) — an
+  explicit `?visibility=draft|unlisted|takedown` is rejected with `400
+  VALIDATION_ERROR` rather than accepted, closing what was previously an
+  unauthenticated path to any artist's draft/unlisted/takedown catalog.
+  See `middleware/validateTrackQuery.js`'s `restrictToPublic` option.
+  `GET /api/v1/me/tracks` is unaffected — it does not pass that option,
+  and continues to let the authenticated owner filter their own catalog
+  by any visibility value.
+- `GET /api/v1/tracks` and `GET /api/v1/artists` share a dedicated
+  public-read rate limiter (V3.3, `middleware/rateLimiters.js`),
+  independent of the auth limiters — see `PUBLIC_READ_RATE_LIMIT_*` in
+  `.env.example`. Not applied to `GET /api/v1/health`,
+  `GET /api/v1/me/tracks`, or any legacy route.
 
 ## Known limitations / natural next steps
 
-- `GET /api/v1/tracks?visibility=draft` (etc.) still has no owner-scoped
-  authentication — it's exactly as open as the legacy endpoint for any
-  explicitly-requested visibility. Use `GET /api/v1/me/tracks` for the
-  authenticated, owner-scoped equivalent (added — see above). The
-  frontend Studio (`client/src/pages/StudioPage.js`) does not consume it
-  yet; it still fetches everything from `GET /api/tracks` and filters by
-  `artistId` client-side. Migrating it is a separate, frontend-only
-  follow-up.
 - Full-text `search` is a plain, escaped, case-insensitive regex match
   against `title`/`artist`. This is appropriate at the current catalog
   size; MongoDB Atlas Search (or a native `$text` index) is the
