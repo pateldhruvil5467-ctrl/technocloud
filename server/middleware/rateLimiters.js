@@ -47,4 +47,18 @@ const publicReadLimiter = rateLimit({
     handler: rateLimitHandler,
 });
 
-module.exports = { loginLimiter, registerLimiter, publicReadLimiter };
+// Dedicated limiter for POST /api/v1/discovery/interpret. Deliberately
+// its own instance — never the login/register limiters, never
+// publicReadLimiter — since an accepted request here can trigger a real,
+// billed external AI call, a materially different cost profile than a
+// plain DB read or a login attempt. See config/env.js for the
+// AI_INTERPRET_RATE_LIMIT_* env vars and their defaults.
+const aiInterpretLimiter = rateLimit({
+    windowMs: config.aiInterpretRateLimitWindowMs,
+    max: config.aiInterpretRateLimitMax,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: rateLimitHandler,
+});
+
+module.exports = { loginLimiter, registerLimiter, publicReadLimiter, aiInterpretLimiter };

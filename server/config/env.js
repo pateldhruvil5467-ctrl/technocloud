@@ -82,6 +82,18 @@ const config = Object.freeze({
     // aborting — keeps a slow/hanging provider from ever hanging a
     // request indefinitely.
     aiRequestTimeoutMs: Number(process.env.AI_REQUEST_TIMEOUT_MS) || 8000,
+
+    // Dedicated rate limiter for POST /api/v1/discovery/interpret — kept
+    // separate from both the auth limiters and publicReadLimiter (never
+    // reused) because this route has a real cost profile the others
+    // don't: every accepted request can trigger a billed external AI
+    // call, unlike a login attempt or a plain DB read. Same 15-minute
+    // window as the other limiters for consistency, but a ceiling well
+    // below publicReadLimiter's (300) — conservative on purpose, tune up
+    // via env if real usage warrants it.
+    aiInterpretRateLimitWindowMs:
+        Number(process.env.AI_INTERPRET_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+    aiInterpretRateLimitMax: Number(process.env.AI_INTERPRET_RATE_LIMIT_MAX) || 20,
 });
 
 module.exports = config;

@@ -47,4 +47,14 @@ module.exports = async function globalSetup() {
     // while still letting publicReadRateLimit.test.js trigger a real 429
     // with a fast, bounded burst instead of the production default (300).
     process.env.PUBLIC_READ_RATE_LIMIT_MAX = "40";
+
+    // Same reasoning, for the dedicated POST /api/v1/discovery/interpret
+    // limiter (its own instance, separate from publicReadLimiter — see
+    // middleware/rateLimiters.js). discoveryV1.test.js makes ~20 real
+    // requests to this route across its full suite (in its own isolated
+    // app/limiter instance); 30 stays comfortably above that while still
+    // letting discoveryRateLimit.test.js (a separate file, its own
+    // isolated instance) trigger a real 429 with a fast, bounded burst
+    // instead of the production default (20).
+    process.env.AI_INTERPRET_RATE_LIMIT_MAX = "30";
 };
