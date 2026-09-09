@@ -57,6 +57,31 @@ const config = Object.freeze({
     publicReadRateLimitWindowMs:
         Number(process.env.PUBLIC_READ_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
     publicReadRateLimitMax: Number(process.env.PUBLIC_READ_RATE_LIMIT_MAX) || 300,
+
+    // AI search-intent provider (services/aiProvider.js). Entirely
+    // optional — deliberately NOT in REQUIRED_VARS above, so a missing
+    // key never prevents the app from starting; interpretSearchIntent()
+    // just returns 503 AI_PROVIDER_UNAVAILABLE until one is configured
+    // (see services/ai/gemini.js's isConfigured()).
+    //
+    // aiProvider selects which services/ai/<name>.js implementation
+    // aiProvider.js dispatches to — "gemini" is the only one that exists
+    // today, but the app layer never hardcodes that name itself.
+    aiProvider: process.env.AI_PROVIDER || "gemini",
+
+    // Google AI Studio (https://aistudio.google.com/apikey) issues a free
+    // API key with no credit card required — the free tier is generous
+    // enough for development/portfolio use. geminiModel is
+    // env-configurable on purpose: Google renames/deprecates free-tier
+    // model ids over time, and this lets that be a config change, not a
+    // code change.
+    geminiApiKey: process.env.GEMINI_API_KEY || null,
+    geminiModel: process.env.GEMINI_MODEL || "gemini-2.0-flash",
+
+    // Bounds how long services/ai/gemini.js waits for a response before
+    // aborting — keeps a slow/hanging provider from ever hanging a
+    // request indefinitely.
+    aiRequestTimeoutMs: Number(process.env.AI_REQUEST_TIMEOUT_MS) || 8000,
 });
 
 module.exports = config;

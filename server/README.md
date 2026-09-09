@@ -320,6 +320,94 @@ default plain-text 404 page.
   `.env.example`. Not applied to `GET /api/v1/health`,
   `GET /api/v1/me/tracks`, or any legacy route.
 
+## AI search intent (V4.1)
+
+TechnoCloud can translate a natural-language query ("dark industrial techno
+for a late-night warehouse set") into the same structured filters
+`GET /api/v1/tracks` already accepts — `genre`, `subgenre`, `isMix`, `sort`,
+`search`. **No HTTP endpoint exposes this yet** — this phase built the
+service-layer boundary only (`services/aiProvider.js`,
+`services/searchIntent.js`, `services/ai/gemini.js`); wiring a route/
+controller on top of it is a separate, future task.
+
+**Architecture — the trust boundary is the whole design:**
+
+```
+User natural-language query
+        ↓
+services/aiProvider.js  → services/ai/gemini.js (or any future provider)
+        ↓
+UNTRUSTED structured output (whatever the model returned, unvalidated)
+        ↓
+services/searchIntent.js  normalizeIntent()
+        ↓
+allowlisted, type-checked intent (genre/subgenre/isMix/sort/search only)
+        ↓
+the existing, unchanged Discovery engine (services/trackService.js)
+```
+
+`normalizeIntent()` is the only place AI output is trusted to become
+anything the application acts on. It allowlists exactly five fields and
+drops everything else — including `visibility`, `artistId`, `userId`,
+`uploadedBy`, any `$`-prefixed Mongo-operator-shaped key, and any field
+of the wrong type (an array/object where a string is expected, an
+out-of-enum `sort`, an oversized string). AI output can never reach a
+Mongo query directly; it can only ever produce the same intermediate
+shape a hand-typed filter already produces.
+
+**Provider abstraction:** the rest of the application depends only on
+`services/aiProvider.js`'s `interpretSearchIntent(query)` — it never
+knows which provider is configured, imports a provider SDK, or sees a
+provider-specific response shape. Each real provider is its own file
+under `services/ai/` (currently just `gemini.js`), exposing exactly two
+functions: `isConfigured()` and `interpret(query)`. Adding a second
+provider later means adding one file and one entry in
+`aiProvider.js`'s `PROVIDERS` map — no controller, route, or existing
+test ever needs to change.
+
+**Environment configuration** (see `.env.example`) — all optional:
+
+| Variable | Purpose | Default |
+|---|---|---|
+| `AI_PROVIDER` | Which `services/ai/<name>.js` implementation to use | `gemini` |
+| `GEMINI_API_KEY` | Free API key from [Google AI Studio](https://aistudio.google.com/apikey) — no credit card required | unset (feature disabled) |
+| `GEMINI_MODEL` | Free-tier-eligible model id | `gemini-2.0-flash` |
+| `AI_REQUEST_TIMEOUT_MS` | How long to wait before aborting a provider call | `8000` |
+
+**Running without an AI key:** the app starts and runs completely
+normally with none of these set. `interpretSearchIntent()` detects the
+provider is unconfigured and returns `503 AI_PROVIDER_UNAVAILABLE`
+(via `AppError`) — never a startup failure, never a crash. This is
+identical to how `MONGO_URI`/`JWT_SECRET` are the only two variables
+that actually block startup; an AI key is never one of them.
+
+**Configuring the free provider locally:** create a free API key at
+<https://aistudio.google.com/apikey> (no credit card required), then
+set `GEMINI_API_KEY` in your local `.env`. Never commit `.env` or paste
+a real key into `.env.example` — it stays a placeholder/commented-out
+template only.
+
+**Fallback behavior:** `services/searchIntent.js` also exports
+`createFallbackIntent(query)`, which turns the raw query into a plain
+`{ search: "..." }` intent — the same shape `GET /api/v1/tracks?search=`
+already supports today with zero AI involvement. When a future caller
+wires this up, the intended pattern is: try `interpretSearchIntent()`,
+and on any failure (unconfigured, timeout, malformed output — anything
+that throws `AI_PROVIDER_UNAVAILABLE`), fall back to
+`createFallbackIntent()` rather than surfacing an error to the user.
+AI is an enhancement to Discovery, never a dependency of it.
+
+**What is treated as untrusted, explicitly:** the AI's response can
+claim any shape — malformed JSON, an array, a primitive, an object with
+Mongo-operator-shaped keys (`$where`, `$or`), or a `visibility`/
+`artistId`/`userId`/`uploadedBy` field attempting to reach into
+ownership or visibility territory it has no business touching. All of
+this is exercised directly in `tests/unit/searchIntent.test.js`.
+Provider-side failures (timeouts, non-2xx responses, malformed
+responses, network errors) are exercised in `tests/unit/gemini.test.js`
+and `tests/unit/aiProvider.test.js`, entirely against a mocked network
+layer — no test in this suite ever makes a real AI provider call.
+
 ## Known limitations / natural next steps
 
 - Full-text `search` is a plain, escaped, case-insensitive regex match
