@@ -1,10 +1,13 @@
-import React, { useCallback, useEffect, useId, useState } from "react";
+import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { FiCompass } from "react-icons/fi";
 
 import TrackCard from "../features/tracks/TrackCard";
 import ArtistResultCard from "../features/artists/ArtistResultCard";
+import { applyDiscoveryIntent } from "../features/discovery/applyDiscoveryIntent";
 import { searchTracks } from "../services/tracksApi";
 import { searchArtists } from "../services/artistsApi";
+import { interpretDiscoveryQuery } from "../services/discoveryApi";
 import Input from "../components/primitives/Input";
 import Button from "../components/primitives/Button";
 import Skeleton from "../components/primitives/Skeleton";
@@ -34,6 +37,17 @@ import ErrorState from "../components/primitives/ErrorState";
  * artistId/ownership field is ever sent to the public track endpoint.
  * The artist directory is equally public and carries no ownership
  * concept to leak — see services/artistsApi.js's searchArtists whitelist.
+ *
+ * V4.2 adds AI-assisted natural-language discovery: a query typed here is
+ * sent to POST /api/v1/discovery/interpret (services/discoveryApi.js),
+ * and whatever `intent` comes back is passed through
+ * features/discovery/applyDiscoveryIntent.js — a second, independent,
+ * explicit allowlist — before it ever touches the URL. This is purely an
+ * alternate way to populate the SAME track filter state the manual
+ * Search/Genre/Subgenre/Type/Sort controls below already drive; it is
+ * not a second search system, and it never queries Mongo or Track data
+ * itself — GET /api/v1/tracks (via searchTracks) remains the only thing
+ * that ever fetches tracks.
  */
 
 const SORT_OPTIONS = [
@@ -152,9 +166,29 @@ function DiscoverPage() {
     const [artistStatus, setArtistStatus] = useState("loading"); // loading | ready | error
     const [artistRetryToken, setArtistRetryToken] = useState(0);
 
+    // AI-assisted discovery (V4.2). Independent of both fetch effects
+    // above — this is a manual, submit-triggered action, not something
+    // the URL drives. aiRequestRef tracks the in-flight
+    // POST /api/v1/discovery/interpret call so a newer submission can
+    // abort a still-pending older one, the same AbortController pattern
+    // already used for the track/artist GET requests above.
+    const [aiQuery, setAiQuery] = useState("");
+    const [aiStatus, setAiStatus] = useState("idle"); // idle | loading | error
+    const [aiNotice, setAiNotice] = useState(null); // { type: "fallback" | "unsupported", message } | null
+    const aiRequestRef = useRef(null);
+
+    useEffect(() => {
+        return () => {
+            if (aiRequestRef.current) {
+                aiRequestRef.current.abort();
+            }
+        };
+    }, []);
+
     const mixId = useId();
     const sortId = useId();
     const artistSortId = useId();
+    const aiQueryId = useId();
 
     // Keep the local text inputs in sync when the URL changes from
     // outside typing (back/forward navigation, a pasted link, "Clear
@@ -385,6 +419,68 @@ function DiscoverPage() {
         setArtistRetryToken((t) => t + 1);
     }
 
+    // Runs the AI interpretation for `rawQuery` and applies whatever
+    // comes back to the existing track filter URL state via
+    // updateParams() — the same function the manual filters already use,
+    // so this is not a second state-update path, just a second producer
+    // of the same patch shape.
+    async function runAiInterpret(rawQuery) {
+        const trimmed = rawQuery.trim();
+        if (!trimmed) return; // never send an empty/whitespace-only query
+
+        // A newer submission always wins: abort whatever the previous
+        // one was still waiting on before starting this one.
+        if (aiRequestRef.current) {
+            aiRequestRef.current.abort();
+        }
+        const controller = new AbortController();
+        aiRequestRef.current = controller;
+
+        setAiStatus("loading");
+        setAiNotice(null);
+
+        try {
+            const result = await interpretDiscoveryQuery(trimmed, { signal: controller.signal });
+
+            // Guards against a stale response landing after a newer
+            // request has already started — belt-and-suspenders beyond
+            // the abort() above, since not every rejection path
+            // necessarily surfaces as a thrown error.
+            if (controller.signal.aborted) return;
+
+            const patch = applyDiscoveryIntent(result.intent);
+            updateParams(patch);
+
+            if (result.source === "fallback") {
+                setAiNotice({
+                    type: "fallback",
+                    message: "AI interpretation is unavailable right now — searching directly instead.",
+                });
+            } else if (Array.isArray(result.unsupported) && result.unsupported.length > 0) {
+                setAiNotice({
+                    type: "unsupported",
+                    message: "Some parts of your request couldn't be applied.",
+                });
+            } else {
+                setAiNotice(null);
+            }
+
+            setAiStatus("idle");
+        } catch (error) {
+            if (controller.signal.aborted) return;
+            setAiStatus("error");
+        }
+    }
+
+    function handleAiFormSubmit(e) {
+        e.preventDefault();
+        runAiInterpret(aiQuery);
+    }
+
+    function handleAiRetry() {
+        runAiInterpret(aiQuery);
+    }
+
     const artistHasNextPage = Boolean(artistPagination && artistState.page < artistPagination.pages);
 
     return (
@@ -395,6 +491,54 @@ function DiscoverPage() {
                     Search and filter every public track on TechnoCloud.
                 </p>
             </header>
+
+            {/* AI-ASSISTED DISCOVERY — V4.2. An alternate entry point into
+                the same track filter state the manual controls below
+                drive, not a chat interface: one input, one action, a
+                small technical-style label. Submitting it populates
+                Search/Genre/Subgenre/Type/Sort exactly as if they'd been
+                set by hand — the manual controls below remain fully
+                independent and unaffected until this runs. */}
+
+            <form onSubmit={handleAiFormSubmit} className="flex flex-col gap-3">
+                <div className="flex items-center gap-1.5">
+                    <FiCompass size={12} className="text-accent" aria-hidden="true" />
+                    <span className="font-technical text-[10px] uppercase tracking-wide text-text-faint">
+                        AI-assisted discovery
+                    </span>
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                    <div className="flex-1">
+                        <Input
+                            id={aiQueryId}
+                            label="Describe what you want to hear"
+                            type="search"
+                            placeholder="e.g. dark industrial techno for a late-night warehouse set"
+                            value={aiQuery}
+                            onChange={(e) => setAiQuery(e.target.value)}
+                        />
+                    </div>
+                    <Button type="submit" variant="primary" disabled={aiQuery.trim().length === 0}>
+                        {aiStatus === "loading" ? "Interpreting…" : "Discover"}
+                    </Button>
+                </div>
+
+                {aiStatus === "error" && (
+                    <div className="flex flex-wrap items-center gap-3">
+                        <p className="font-body text-xs text-danger">
+                            Couldn't interpret that right now. Check your connection and try again.
+                        </p>
+                        <Button type="button" variant="ghost" onClick={handleAiRetry}>
+                            Try again
+                        </Button>
+                    </div>
+                )}
+
+                {aiStatus !== "error" && aiNotice && (
+                    <p className="font-body text-xs text-text-faint">{aiNotice.message}</p>
+                )}
+            </form>
 
             <form onSubmit={handleFiltersSubmit} className="flex flex-col gap-4">
                 <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-end">
