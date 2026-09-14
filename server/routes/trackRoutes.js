@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
+const crypto = require("crypto");
 const multer = require("multer");
 
 const trackController = require("../controllers/trackController");
@@ -21,10 +22,18 @@ const storage = multer.diskStorage({
 
     filename: (req, file, cb) => {
 
-        cb(
-            null,
-            Date.now() + "-" + file.originalname
-        );
+        // The client-supplied filename (file.originalname) is never used to
+        // build the stored path or filename — a crafted name (e.g.
+        // containing "../" or absolute-path segments) could otherwise let a
+        // write escape the uploads/ directory, and an attacker-chosen
+        // extension could change how the file is later served. Every
+        // upload that reaches this point has already passed fileFilter
+        // above (ACCEPTED_AUDIO_MIME_TYPES), so ".mp3" is always correct
+        // here rather than derived from client input. Date.now() keeps the
+        // existing sortable-by-upload-time prefix; the random UUID
+        // guarantees uniqueness even for two uploads in the same
+        // millisecond, which a timestamp alone cannot.
+        cb(null, `${Date.now()}-${crypto.randomUUID()}.mp3`);
     },
 });
 

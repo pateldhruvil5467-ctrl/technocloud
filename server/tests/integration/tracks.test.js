@@ -270,6 +270,117 @@ describe("POST /api/tracks/upload", () => {
         expect(res.status).toBeLessThan(500);
         expect(res.body.message).toBe("Audio file exceeds the maximum allowed size");
     });
+
+    // Deployment-prep hardening: the stored filename must be server-generated,
+    // never derived from the client-supplied file.originalname, so a crafted
+    // name can neither leak into the stored path nor escape uploads/.
+    describe("stored filename safety", () => {
+        const SAFE_FILENAME_PATTERN = /^\d+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.mp3$/i;
+
+        it("never uses the client-supplied original filename as the stored filename", async () => {
+            const token = await createUserAndLogin("ARTIST");
+
+            const res = await request(app)
+                .post("/api/tracks/upload")
+                .set("Authorization", token)
+                .field("title", "Original Name Track")
+                .field("artist", "Test Artist")
+                .attach("audio", FIXTURE_AUDIO, {
+                    filename: "my totally original mix (final) v2.mp3",
+                    contentType: "audio/mpeg",
+                });
+
+            expect(res.status).toBe(201);
+            expect(res.body.track.audio).toMatch(SAFE_FILENAME_PATTERN);
+            expect(res.body.track.audio).not.toMatch(/original/i);
+            expect(res.body.track.audio).not.toContain(" ");
+        });
+
+        it("cannot let a path-traversal filename escape the uploads directory", async () => {
+            const token = await createUserAndLogin("ARTIST");
+
+            const res = await request(app)
+                .post("/api/tracks/upload")
+                .set("Authorization", token)
+                .field("title", "Traversal Attempt Track")
+                .field("artist", "Test Artist")
+                .attach("audio", FIXTURE_AUDIO, {
+                    filename: "../../../../evil.mp3",
+                    contentType: "audio/mpeg",
+                });
+
+            expect(res.status).toBe(201);
+
+            const storedFilename = res.body.track.audio;
+            expect(storedFilename).toMatch(SAFE_FILENAME_PATTERN);
+            expect(storedFilename).not.toContain("..");
+            expect(storedFilename).not.toContain("/");
+            expect(storedFilename).not.toContain("\\");
+
+            // The file must land strictly inside <tempDir>/uploads, never
+            // above it — proves the traversal characters in the client's
+            // filename had no effect on the actual write location.
+            const expectedPath = path.join(tempDir, "uploads", storedFilename);
+            expect(fs.existsSync(expectedPath)).toBe(true);
+
+            const escapedPath = path.join(tempDir, "..", "evil.mp3");
+            expect(fs.existsSync(escapedPath)).toBe(false);
+        });
+
+        it("generates a distinct filename for two uploads with the same original name", async () => {
+            const token = await createUserAndLogin("ARTIST");
+
+            const attach = () =>
+                request(app)
+                    .post("/api/tracks/upload")
+                    .set("Authorization", token)
+                    .field("title", "Duplicate Name Track")
+                    .field("artist", "Test Artist")
+                    .attach("audio", FIXTURE_AUDIO, {
+                        filename: "same-name.mp3",
+                        contentType: "audio/mpeg",
+                    });
+
+            const first = await attach();
+            const second = await attach();
+
+            expect(first.status).toBe(201);
+            expect(second.status).toBe(201);
+            expect(first.body.track.audio).not.toBe(second.body.track.audio);
+        });
+
+        it("stores the exact audio bytes under the safe filename — playback compatibility is preserved", async () => {
+            // GET /uploads/<audio> itself isn't exercised here: app.js's
+            // express.static("uploads") root is resolved once, relative to
+            // process.cwd() at app.js require-time — this file's
+            // per-suite chdir into tempDir (see beforeAll above) happens
+            // after that require, so the live static route still points at
+            // the real server/uploads/ directory in this test process.
+            // That's a pre-existing test-isolation quirk (irrelevant in
+            // actual deployment, where cwd never changes at runtime), not
+            // something this change touches. What playback compatibility
+            // actually depends on — the safe filename resolving to the
+            // exact uploaded bytes on disk, the same way it did before —
+            // is what this test verifies directly.
+            const token = await createUserAndLogin("ARTIST");
+
+            const uploadRes = await request(app)
+                .post("/api/tracks/upload")
+                .set("Authorization", token)
+                .field("title", "Streamable Track")
+                .field("artist", "Test Artist")
+                .attach("audio", FIXTURE_AUDIO, {
+                    filename: "weird name?.mp3",
+                    contentType: "audio/mpeg",
+                });
+
+            expect(uploadRes.status).toBe(201);
+
+            const storedPath = path.join(tempDir, "uploads", uploadRes.body.track.audio);
+            expect(fs.existsSync(storedPath)).toBe(true);
+            expect(fs.readFileSync(storedPath).equals(fs.readFileSync(FIXTURE_AUDIO))).toBe(true);
+        });
+    });
 });
 
 describe("Artist attribution (Phase A.1)", () => {

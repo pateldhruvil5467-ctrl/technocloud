@@ -20,6 +20,20 @@ const v1DiscoveryRoutes = require("./routes/v1/discoveryRoutes");
 
 const app = express();
 
+// TRUST PROXY
+//
+// In production this app runs behind Render's reverse proxy, which
+// terminates TLS and forwards requests over a single internal hop. Without
+// this, Express's req.ip (and req.secure) resolve to the proxy itself
+// rather than the real client for every request, which breaks
+// express-rate-limit's per-client keying — every user would collapse into
+// one shared bucket. "1" tells Express to trust exactly one hop of
+// X-Forwarded-For (Render's own proxy), matching Render's documented
+// single-proxy topology, rather than trusting the header unconditionally.
+// Harmless locally: with no proxy in front of it in dev, there's nothing
+// to trust and req.ip still resolves normally.
+app.set("trust proxy", 1);
+
 // SECURITY HEADERS
 //
 // crossOriginResourcePolicy is explicitly relaxed from helmet's

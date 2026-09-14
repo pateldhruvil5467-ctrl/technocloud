@@ -15,6 +15,42 @@ afterAll(async () => {
     await closeDatabase();
 });
 
+describe("Trust proxy", () => {
+    // Render terminates TLS and proxies every request through a single
+    // hop, so Express must be told to trust exactly that one hop of
+    // X-Forwarded-For — otherwise req.ip (which express-rate-limit keys
+    // every limiter on) resolves to the proxy itself for every request,
+    // collapsing all clients into one shared rate-limit bucket. See the
+    // comment above app.set("trust proxy", 1) in app.js.
+    it("is configured to trust exactly one proxy hop", () => {
+        expect(app.get("trust proxy")).toBe(1);
+    });
+
+    it("keys the public-read rate limiter per forwarded client IP once trust proxy is enabled", async () => {
+        // express-rate-limit keys each bucket on req.ip. If trust proxy
+        // weren't honoring X-Forwarded-For, every request in this test
+        // would resolve to the same raw socket address regardless of the
+        // header, and the three calls below would all land in one bucket.
+        const first = await request(app).get("/api/v1/tracks").set("X-Forwarded-For", "203.0.113.7");
+        const second = await request(app).get("/api/v1/tracks").set("X-Forwarded-For", "203.0.113.7");
+        const third = await request(app).get("/api/v1/tracks").set("X-Forwarded-For", "198.51.100.23");
+
+        expect(first.status).toBe(200);
+        expect(second.status).toBe(200);
+        expect(third.status).toBe(200);
+
+        const firstRemaining = Number(first.headers["ratelimit-remaining"]);
+        const secondRemaining = Number(second.headers["ratelimit-remaining"]);
+        const thirdRemaining = Number(third.headers["ratelimit-remaining"]);
+
+        // Same forwarded IP twice — same bucket, remaining drops by 1.
+        expect(secondRemaining).toBe(firstRemaining - 1);
+        // A different forwarded IP — its own fresh bucket, not continuing
+        // the first IP's count down.
+        expect(thirdRemaining).toBe(firstRemaining);
+    });
+});
+
 describe("Helmet security headers", () => {
     it("includes baseline security headers on API responses", async () => {
         const res = await request(app).get("/api/tracks");
