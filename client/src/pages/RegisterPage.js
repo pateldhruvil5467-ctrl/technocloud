@@ -8,12 +8,13 @@ import Button from "../components/primitives/Button";
 import Input from "../components/primitives/Input";
 
 /*
- * RegisterPage — Phase UI.5-A. Same registration flow as before, rebuilt
- * on the design system:
- *   - POST /api/auth/register with { username, email, password, role }
- *     — role is still sent (existing behavior, unchanged) even though
- *     the backend ignores it for public registration and always creates
- *     a USER (server/controllers/authController.js)
+ * RegisterPage — V5.2-A secure artist onboarding.
+ *   - POST /api/auth/register with { username, email, password, accountType }
+ *     — accountType is "USER" or "ARTIST" (default "USER"), the only
+ *     account-type field the backend trusts (server/controllers/
+ *     authController.js validates it against a fixed allowlist and maps
+ *     it internally to `role`; a client-supplied `role` field is never
+ *     sent and never consulted)
  *   - registration issues no token, so it never logs the user in —
  *     still redirects to /login afterward, same as before, now passing
  *     a flash message via router state instead of alert() (see
@@ -38,7 +39,7 @@ function RegisterPage() {
     const [username, setUsername] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [role, setRole] = useState("USER");
+    const [accountType, setAccountType] = useState("USER");
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
 
@@ -54,7 +55,7 @@ function RegisterPage() {
                 username,
                 email,
                 password,
-                role,
+                accountType,
             });
 
             navigate("/login", { state: { justRegistered: true } });
@@ -108,23 +109,42 @@ function RegisterPage() {
                     required
                 />
 
-                <div className="flex flex-col gap-2">
-                    <label
-                        htmlFor="register-role"
-                        className="font-body text-xs font-medium uppercase tracking-wide text-text-secondary"
-                    >
+                <fieldset className="flex flex-col gap-2">
+                    <legend className="font-body text-xs font-medium uppercase tracking-wide text-text-secondary">
                         Account type
-                    </label>
-                    <select
-                        id="register-role"
-                        value={role}
-                        onChange={(e) => setRole(e.target.value)}
-                        className="rounded-md border border-border bg-surface px-3 py-2 font-body text-sm text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                    >
-                        <option value="USER">Listener</option>
-                        <option value="ARTIST">Artist</option>
-                    </select>
-                </div>
+                    </legend>
+
+                    <div className="grid grid-cols-2 gap-2">
+                        {[
+                            { value: "USER", label: "Listener", hint: "Browse and play tracks." },
+                            { value: "ARTIST", label: "Artist", hint: "Unlocks the Artist Studio for uploading tracks." },
+                        ].map((option) => (
+                            <label
+                                key={option.value}
+                                className={[
+                                    "flex cursor-pointer flex-col gap-1 rounded-md border p-3 transition-colors duration-fast",
+                                    "has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent",
+                                    accountType === option.value
+                                        ? "border-accent bg-surface-raised"
+                                        : "border-border hover:border-border-strong",
+                                ].join(" ")}
+                            >
+                                <span className="flex items-center gap-2">
+                                    <input
+                                        type="radio"
+                                        name="accountType"
+                                        value={option.value}
+                                        checked={accountType === option.value}
+                                        onChange={(e) => setAccountType(e.target.value)}
+                                        className="accent-accent"
+                                    />
+                                    <span className="font-body text-sm font-medium text-text">{option.label}</span>
+                                </span>
+                                <span className="font-body text-xs text-text-secondary">{option.hint}</span>
+                            </label>
+                        ))}
+                    </div>
+                </fieldset>
 
                 {error && (
                     <p role="alert" className="font-body text-xs text-danger">
