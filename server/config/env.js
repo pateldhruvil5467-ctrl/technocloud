@@ -94,6 +94,36 @@ const config = Object.freeze({
     aiInterpretRateLimitWindowMs:
         Number(process.env.AI_INTERPRET_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
     aiInterpretRateLimitMax: Number(process.env.AI_INTERPRET_RATE_LIMIT_MAX) || 20,
+
+    // V5.2-B1 — media storage foundation. "local" (the default) keeps
+    // every current upload/playback behavior exactly as-is (multer to
+    // uploads/, served by app.js's express.static) — this phase adds no
+    // new required configuration and does not change what provider is
+    // actually used anywhere. "s3" is recognized by
+    // services/mediaProvider.js but nothing in the app selects or
+    // depends on it yet; see services/media/s3.js's isConfigured() for
+    // the gate real S3 usage will be built behind in a later phase.
+    mediaStorageProvider: process.env.MEDIA_STORAGE_PROVIDER || "local",
+
+    // S3/CloudFront — all optional while mediaStorageProvider is "local".
+    // Deliberately no S3 credential fields here yet (e.g. an access key/
+    // secret, or IAM-role configuration): no code in this phase makes an
+    // authenticated AWS call, so there is nothing yet for a credential
+    // value to configure, and adding one unused would be exactly the
+    // kind of speculative field this phase is meant to avoid. See the
+    // V5.2-B architecture audit's "Environment Variables" section for
+    // the full list a future phase will need, and for the open question
+    // of whether Render supports an attached IAM role (preferred) or
+    // requires long-lived access-key env vars instead.
+    s3Bucket: process.env.S3_BUCKET || null,
+    s3Region: process.env.S3_REGION || null,
+    cloudfrontDomain: process.env.CLOUDFRONT_DOMAIN || null,
+
+    // How long a future presigned upload URL should remain valid for.
+    // Unused until a later phase actually generates one; kept here now
+    // so that phase is a pure logic change, not also a config change.
+    mediaPresignedUrlExpirySeconds:
+        Number(process.env.MEDIA_PRESIGNED_URL_EXPIRY_SECONDS) || 300,
 });
 
 module.exports = config;

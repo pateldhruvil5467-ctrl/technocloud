@@ -291,9 +291,13 @@ describe("POST /api/tracks/upload", () => {
                 });
 
             expect(res.status).toBe(201);
-            expect(res.body.track.audio).toMatch(SAFE_FILENAME_PATTERN);
-            expect(res.body.track.audio).not.toMatch(/original/i);
-            expect(res.body.track.audio).not.toContain(" ");
+            // V5.2-B1: Track.audio is now { provider, key, mimeType } —
+            // the server-generated filename lives at .key. See
+            // models/Track.js / utils/audioMedia.js.
+            expect(res.body.track.audio.provider).toBe("local");
+            expect(res.body.track.audio.key).toMatch(SAFE_FILENAME_PATTERN);
+            expect(res.body.track.audio.key).not.toMatch(/original/i);
+            expect(res.body.track.audio.key).not.toContain(" ");
         });
 
         it("cannot let a path-traversal filename escape the uploads directory", async () => {
@@ -311,7 +315,8 @@ describe("POST /api/tracks/upload", () => {
 
             expect(res.status).toBe(201);
 
-            const storedFilename = res.body.track.audio;
+            // V5.2-B1: Track.audio is now { provider, key, mimeType }.
+            const storedFilename = res.body.track.audio.key;
             expect(storedFilename).toMatch(SAFE_FILENAME_PATTERN);
             expect(storedFilename).not.toContain("..");
             expect(storedFilename).not.toContain("/");
@@ -346,7 +351,12 @@ describe("POST /api/tracks/upload", () => {
 
             expect(first.status).toBe(201);
             expect(second.status).toBe(201);
-            expect(first.body.track.audio).not.toBe(second.body.track.audio);
+            // V5.2-B1: Track.audio is now an object — compare .key
+            // directly rather than the whole object (two separately
+            // JSON-parsed response objects are never reference-equal
+            // regardless of content, which would make a bare
+            // `.not.toBe()` on the objects themselves vacuously true).
+            expect(first.body.track.audio.key).not.toBe(second.body.track.audio.key);
         });
 
         it("stores the exact audio bytes under the safe filename — playback compatibility is preserved", async () => {
@@ -376,7 +386,8 @@ describe("POST /api/tracks/upload", () => {
 
             expect(uploadRes.status).toBe(201);
 
-            const storedPath = path.join(tempDir, "uploads", uploadRes.body.track.audio);
+            // V5.2-B1: Track.audio is now { provider, key, mimeType }.
+            const storedPath = path.join(tempDir, "uploads", uploadRes.body.track.audio.key);
             expect(fs.existsSync(storedPath)).toBe(true);
             expect(fs.readFileSync(storedPath).equals(fs.readFileSync(FIXTURE_AUDIO))).toBe(true);
         });
@@ -427,7 +438,14 @@ describe("Artist attribution (Phase A.1)", () => {
     });
 
     it("keeps a legacy track without artistId valid and listed", async () => {
-        await Track.create({
+        // Inserted via the native driver, bypassing the Track model, so
+        // `audio` genuinely stays the pre-V5.2-B1 bare-filename string —
+        // exactly what real, unmigrated production documents look like
+        // today (Track.create() would auto-upgrade a string audio value
+        // via the schema's own `set` transform; see
+        // tests/integration/trackAudioModel.test.js).
+        const mongoose = require("mongoose");
+        await mongoose.connection.collection("tracks").insertOne({
             title: "Legacy Track",
             artist: "Legacy Artist",
             audio: "1700000000000-legacy.mp3",
