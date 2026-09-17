@@ -75,6 +75,35 @@ describe("config/env.js — media storage", () => {
         expect(s3.isConfigured()).toBe(false);
     });
 
+    it("V5.2-B2: the s3 provider is configured for presigning with only S3_BUCKET/S3_REGION — CLOUDFRONT_DOMAIN is not required", () => {
+        jest.resetModules();
+        process.env = {
+            ...ORIGINAL_ENV,
+            MEDIA_STORAGE_PROVIDER: "s3",
+            S3_BUCKET: "technocloud-media-test",
+            S3_REGION: "us-east-1",
+            CLOUDFRONT_DOMAIN: undefined,
+        };
+
+        const s3 = require("../../services/media/s3");
+        expect(s3.isConfigured()).toBe(true);
+    });
+
+    it("V5.2-B2: getPlaybackUrl still requires CLOUDFRONT_DOMAIN specifically, even when isConfigured() is true", () => {
+        jest.resetModules();
+        process.env = {
+            ...ORIGINAL_ENV,
+            MEDIA_STORAGE_PROVIDER: "s3",
+            S3_BUCKET: "technocloud-media-test",
+            S3_REGION: "us-east-1",
+            CLOUDFRONT_DOMAIN: undefined,
+        };
+
+        const s3 = require("../../services/media/s3");
+        expect(s3.isConfigured()).toBe(true);
+        expect(() => s3.getPlaybackUrl("audio/abc/def.mp3")).toThrow(/CLOUDFRONT_DOMAIN/);
+    });
+
     it("defaults mediaPresignedUrlExpirySeconds to 300 when unset", () => {
         const config = loadConfig({ MEDIA_PRESIGNED_URL_EXPIRY_SECONDS: undefined });
         expect(config.mediaPresignedUrlExpirySeconds).toBe(300);
@@ -83,6 +112,16 @@ describe("config/env.js — media storage", () => {
     it("respects an overridden mediaPresignedUrlExpirySeconds", () => {
         const config = loadConfig({ MEDIA_PRESIGNED_URL_EXPIRY_SECONDS: "600" });
         expect(config.mediaPresignedUrlExpirySeconds).toBe(600);
+    });
+
+    it("V5.2-B2: defaults mediaUploadIntentRateLimitMax to 20 when unset", () => {
+        const config = loadConfig({ MEDIA_UPLOAD_INTENT_RATE_LIMIT_MAX: undefined });
+        expect(config.mediaUploadIntentRateLimitMax).toBe(20);
+    });
+
+    it("V5.2-B2: respects an overridden mediaUploadIntentRateLimitMax", () => {
+        const config = loadConfig({ MEDIA_UPLOAD_INTENT_RATE_LIMIT_MAX: "5" });
+        expect(config.mediaUploadIntentRateLimitMax).toBe(5);
     });
 
     it("never reads or exposes any AWS credential value — no such field exists on config at all", () => {

@@ -61,4 +61,28 @@ const aiInterpretLimiter = rateLimit({
     handler: rateLimitHandler,
 });
 
-module.exports = { loginLimiter, registerLimiter, publicReadLimiter, aiInterpretLimiter };
+// V5.2-B2 — dedicated limiter for POST /api/v1/media/upload-intent. Its
+// own instance, never reused from publicReadLimiter or the auth
+// limiters: this endpoint mints real, usable signed S3 upload
+// authority on every accepted request, a materially different (and
+// higher) cost/risk profile than a plain DB read — it should not
+// inherit publicReadLimiter's generous, browsing-oriented ceiling. Same
+// 15-minute window as every other limiter for consistency; a
+// conservative default max, similar order of magnitude to
+// aiInterpretLimiter's, since both gate an action with a real
+// per-request cost beyond a simple read.
+const mediaUploadIntentLimiter = rateLimit({
+    windowMs: config.mediaUploadIntentRateLimitWindowMs,
+    max: config.mediaUploadIntentRateLimitMax,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: rateLimitHandler,
+});
+
+module.exports = {
+    loginLimiter,
+    registerLimiter,
+    publicReadLimiter,
+    aiInterpretLimiter,
+    mediaUploadIntentLimiter,
+};

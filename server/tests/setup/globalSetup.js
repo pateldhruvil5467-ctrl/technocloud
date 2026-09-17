@@ -57,4 +57,18 @@ module.exports = async function globalSetup() {
     // isolated instance) trigger a real 429 with a fast, bounded burst
     // instead of the production default (20).
     process.env.AI_INTERPRET_RATE_LIMIT_MAX = "30";
+
+    // V5.2-B2 — same reasoning, for the dedicated
+    // POST /api/v1/media/upload-intent limiter (its own instance,
+    // separate from every other limiter — see middleware/rateLimiters.js).
+    // mediaUploadIntent.test.js alone makes ~32 real requests to this
+    // route across its full suite (auth/ownership/validation/key-
+    // security/persistence/error-handling — in its own isolated
+    // app/limiter instance, same per-file isolation as every other
+    // limiter above). 40 stays comfortably above that real count (same
+    // value already chosen for PUBLIC_READ_RATE_LIMIT_MAX, for the same
+    // reason) while still letting mediaUploadIntentRateLimit.test.js (a
+    // separate file, its own isolated instance) trigger a real 429 with
+    // a fast, bounded burst instead of the production default (20).
+    process.env.MEDIA_UPLOAD_INTENT_RATE_LIMIT_MAX = "40";
 };

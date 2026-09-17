@@ -13,18 +13,23 @@ const s3 = require("./media/s3");
  * is expected to eventually implement all of these):
  *   - isConfigured(): boolean                          [implemented — B1]
  *   - getPlaybackUrl(key, options?): string             [implemented — B1]
- *   - createUploadTarget(...): ...                      [V5.2-B2]
- *   - verifyUpload(...): ...                             [V5.2-B2 / B4]
+ *   - createUploadTarget({key, mimeType, sizeBytes})    [implemented — B2, s3 only]
+ *   - verifyUpload(...): ...                             [V5.2-B4]
  *   - deleteObject(key): ...                             [future, if/when needed]
  *
- * B1 implements only the first two. The rest are deliberately NOT
- * stubbed out here — B1's own instructions are explicit that direct-to-S3
- * upload, presigned URLs, and upload finalization are later phases, and
- * a stub function nothing calls yet is exactly the kind of speculative,
- * unverified code this phase avoids. Their shape is documented above so
- * V5.2-B2 has a clear contract to implement against, without this file
- * having guessed at (and possibly gotten wrong) their real signatures
- * ahead of time.
+ * B2 adds createUploadTarget — implemented only by services/media/s3.js;
+ * services/media/local.js deliberately does NOT implement it (the
+ * existing local upload path is the unchanged multer endpoint in
+ * routes/trackRoutes.js, which never goes through this abstraction at
+ * all — a "local createUploadTarget" would have nothing real to do).
+ * getProvider(...)/createUploadTarget(...) below handle that absence
+ * with a clear error rather than assuming every provider implements
+ * every operation.
+ *
+ * verifyUpload/deleteObject remain deliberately NOT stubbed out — B2's
+ * own instructions are explicit that upload completion/finalization and
+ * deletion are later phases, and a stub function nothing calls yet is
+ * exactly the kind of speculative, unverified code this phase avoids.
  */
 const PROVIDERS = { local, s3 };
 
@@ -62,4 +67,26 @@ function getPlaybackUrl(audio) {
     return provider.getPlaybackUrl(normalized.key);
 }
 
-module.exports = { getProvider, getPlaybackUrl };
+// V5.2-B2 — requests a presigned upload target from whichever provider
+// is CONFIGURED (config.mediaStorageProvider), never a hardcoded "s3".
+// With the default provider ("local"), this always fails clearly and
+// safely — local uploads go through the existing, unchanged multer
+// route instead; there is no presigned-upload concept for it.
+async function createUploadTarget({ key, mimeType, sizeBytes }) {
+    const providerName = config.mediaStorageProvider;
+    const provider = getProvider(providerName);
+
+    if (typeof provider.createUploadTarget !== "function") {
+        throw new Error(
+            `Media storage provider "${providerName}" does not support creating an upload target.`
+        );
+    }
+
+    if (!provider.isConfigured()) {
+        throw new Error(`Media storage provider "${providerName}" is not configured.`);
+    }
+
+    return provider.createUploadTarget({ key, mimeType, sizeBytes });
+}
+
+module.exports = { getProvider, getPlaybackUrl, createUploadTarget };

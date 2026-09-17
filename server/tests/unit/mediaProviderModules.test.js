@@ -24,7 +24,7 @@ describe("services/media/local (real module)", () => {
 });
 
 describe("services/media/s3 (real module, unconfigured in this test environment)", () => {
-    it("reports not configured when S3_BUCKET/S3_REGION/CLOUDFRONT_DOMAIN are unset", () => {
+    it("reports not configured when S3_BUCKET/S3_REGION are unset", () => {
         // tests/setup/globalSetup.js never sets these — this is the
         // real, unconfigured state every test run exercises.
         expect(s3.isConfigured()).toBe(false);
@@ -32,5 +32,11 @@ describe("services/media/s3 (real module, unconfigured in this test environment)
 
     it("fails safely (throws, no network call) when asked for a playback URL while unconfigured", () => {
         expect(() => s3.getPlaybackUrl("audio/abc/def.mp3")).toThrow(/not configured/);
+    });
+
+    it("fails safely (throws, no network call) when asked to create an upload target while unconfigured", async () => {
+        await expect(
+            s3.createUploadTarget({ key: "audio/abc/def.mp3", mimeType: "audio/mpeg", sizeBytes: 1024 })
+        ).rejects.toThrow(/not configured/);
     });
 });

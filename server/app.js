@@ -17,6 +17,7 @@ const v1HealthRoutes = require("./routes/v1/healthRoutes");
 const v1MeRoutes = require("./routes/v1/meRoutes");
 const v1ArtistRoutes = require("./routes/v1/artistRoutes");
 const v1DiscoveryRoutes = require("./routes/v1/discoveryRoutes");
+const v1MediaRoutes = require("./routes/v1/mediaRoutes");
 
 const app = express();
 
@@ -109,6 +110,11 @@ app.use("/api/v1/health", v1HealthRoutes);
 app.use("/api/v1/me", v1MeRoutes);
 app.use("/api/v1/artists", v1ArtistRoutes);
 app.use("/api/v1/discovery", v1DiscoveryRoutes);
+
+// V5.2-B2 — upload-intent foundation only (presigned S3 PUT URL
+// authorization). Does not yet create Tracks, complete/finalize an
+// upload, or touch playback — see routes/v1/mediaRoutes.js.
+app.use("/api/v1/media", v1MediaRoutes);
 
 // TEST ROUTE
 

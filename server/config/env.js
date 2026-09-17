@@ -119,11 +119,20 @@ const config = Object.freeze({
     s3Region: process.env.S3_REGION || null,
     cloudfrontDomain: process.env.CLOUDFRONT_DOMAIN || null,
 
-    // How long a future presigned upload URL should remain valid for.
-    // Unused until a later phase actually generates one; kept here now
-    // so that phase is a pure logic change, not also a config change.
+    // How long a presigned upload URL (and its matching MediaUploadIntent
+    // record — see models/MediaUploadIntent.js) remains valid for.
     mediaPresignedUrlExpirySeconds:
         Number(process.env.MEDIA_PRESIGNED_URL_EXPIRY_SECONDS) || 300,
+
+    // V5.2-B2 — dedicated rate limiter for POST /api/v1/media/upload-intent
+    // (middleware/rateLimiters.js). Same 15-minute window as the other
+    // limiters; a conservative default ceiling since every accepted
+    // request mints real, usable signed upload authority — not a
+    // browsing-style read.
+    mediaUploadIntentRateLimitWindowMs:
+        Number(process.env.MEDIA_UPLOAD_INTENT_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+    mediaUploadIntentRateLimitMax:
+        Number(process.env.MEDIA_UPLOAD_INTENT_RATE_LIMIT_MAX) || 20,
 });
 
 module.exports = config;
