@@ -1,6 +1,7 @@
 const Track = require("../models/Track");
 const User = require("../models/User");
 const ArtistProfile = require("../models/ArtistProfile");
+const { presentTracks } = require("../services/trackPresenter");
 
 exports.uploadTrack = async (req, res) => {
 
@@ -72,7 +73,12 @@ exports.getTracks = async (req, res) => {
         const tracks = await Track.find()
             .sort({ createdAt: -1 });
 
-        res.json(tracks);
+        // V5.2-B5.1 — adds a top-level playbackUrl to each track (see
+        // services/trackPresenter.js). Deliberately does NOT touch this
+        // endpoint's existing visibility behavior (no filter here,
+        // unchanged, pre-existing — out of scope for this phase) or its
+        // bare-array response shape.
+        res.json(presentTracks(tracks));
 
     } catch (error) {
 

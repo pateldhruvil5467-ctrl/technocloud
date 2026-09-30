@@ -1,4 +1,5 @@
 const Track = require("../models/Track");
+const { presentTracks } = require("./trackPresenter");
 
 // The only place a Mongo filter is assembled for track listing — never
 // built from raw req.query (see middleware/validateTrackQuery.js, which
@@ -42,8 +43,14 @@ async function listTracks({ page, limit, sort, filter, search }) {
 
     const totalPages = limit > 0 ? Math.ceil(total / limit) : 0;
 
+    // V5.2-B5.1 — shared presenter adds a top-level playbackUrl to each
+    // Track, resolved via services/mediaProvider.js's getPlaybackUrl.
+    // Both GET /api/v1/tracks and GET /api/v1/me/tracks call this same
+    // function (see routes/v1/trackRoutes.js /
+    // controllers/v1/meController.js), so wiring it in here covers both
+    // with no controller change needed for either.
     return {
-        data,
+        data: presentTracks(data),
         pagination: {
             page,
             limit,

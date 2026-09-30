@@ -314,6 +314,45 @@ describe("GET /api/v1/tracks — injection safety", () => {
     });
 });
 
+describe("GET /api/v1/tracks — playbackUrl (V5.2-B5.1)", () => {
+    it("adds a playbackUrl resolved from the local provider, and leaves audio metadata unchanged", async () => {
+        await Track.create({
+            title: "Track A",
+            artist: "Seed Artist",
+            audio: { provider: "local", key: "1788353068556-uuid.mp3", mimeType: "audio/mpeg", sizeBytes: 4096 },
+            visibility: "public",
+        });
+
+        const res = await request(app).get("/api/v1/tracks");
+
+        expect(res.status).toBe(200);
+        expect(res.body.data).toHaveLength(1);
+        expect(res.body.data[0].playbackUrl).toBe("/uploads/1788353068556-uuid.mp3");
+        expect(res.body.data[0].audio).toEqual({
+            provider: "local",
+            key: "1788353068556-uuid.mp3",
+            mimeType: "audio/mpeg",
+            sizeBytes: 4096,
+        });
+    });
+
+    it("resolves a legacy bare-filename audio value to the same playback URL local uploads have always served", async () => {
+        await seedTracks(1);
+
+        const res = await request(app).get("/api/v1/tracks");
+
+        expect(res.body.data[0].playbackUrl).toBe("/uploads/seed-0.mp3");
+        // Track.js's own schema setter (toAudioObject, pre-existing —
+        // unrelated to this change) normalizes a legacy string into
+        // { provider: "local", key, mimeType } as soon as it's saved.
+        expect(res.body.data[0].audio).toEqual({
+            provider: "local",
+            key: "seed-0.mp3",
+            mimeType: "audio/mpeg",
+        });
+    });
+});
+
 describe("Legacy GET /api/tracks — unchanged", () => {
     it("still returns a bare array (not {data, pagination})", async () => {
         await seedTracks(3);

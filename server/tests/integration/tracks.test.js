@@ -144,6 +144,26 @@ describe("GET /api/tracks", () => {
         const res = await request(app).get("/api/tracks");
         expect(Array.isArray(res.body)).toBe(true);
     });
+
+    it("adds a playbackUrl resolved from the local provider, and leaves audio metadata unchanged (V5.2-B5.1)", async () => {
+        await Track.create({
+            title: "Track A",
+            artist: "Seed Artist",
+            audio: { provider: "local", key: "1788353068556-uuid.mp3", mimeType: "audio/mpeg", sizeBytes: 4096 },
+        });
+
+        const res = await request(app).get("/api/tracks");
+
+        expect(res.status).toBe(200);
+        expect(res.body).toHaveLength(1);
+        expect(res.body[0].playbackUrl).toBe("/uploads/1788353068556-uuid.mp3");
+        expect(res.body[0].audio).toEqual({
+            provider: "local",
+            key: "1788353068556-uuid.mp3",
+            mimeType: "audio/mpeg",
+            sizeBytes: 4096,
+        });
+    });
 });
 
 describe("POST /api/tracks/upload", () => {
@@ -517,6 +537,32 @@ describe("GET /api/users/me and GET /api/artists/:id (Phase A.1)", () => {
         // The public fields the endpoint is still expected to return.
         expect(res.body.artistProfile._id).toBe(profile._id.toString());
         expect(res.body.artistProfile.displayName).toBeDefined();
+    });
+
+    it("adds a playbackUrl to each embedded track, and leaves audio metadata unchanged (V5.2-B5.1)", async () => {
+        const token = await createUserAndLogin("ARTIST");
+        await uploadTrackAs(token, { title: "Profile Trigger" });
+
+        const profile = await ArtistProfile.findOne({ userId: identityCache.ARTIST.userId });
+        await Track.create({
+            title: "S3-Backed Track",
+            artist: "Artist",
+            artistId: profile._id,
+            visibility: "public",
+            audio: { provider: "local", key: "1788353068556-uuid.mp3", mimeType: "audio/mpeg", sizeBytes: 4096 },
+        });
+
+        const res = await request(app).get(`/api/artists/${profile._id}`);
+
+        expect(res.status).toBe(200);
+        const track = res.body.tracks.find((t) => t.title === "S3-Backed Track");
+        expect(track.playbackUrl).toBe("/uploads/1788353068556-uuid.mp3");
+        expect(track.audio).toEqual({
+            provider: "local",
+            key: "1788353068556-uuid.mp3",
+            mimeType: "audio/mpeg",
+            sizeBytes: 4096,
+        });
     });
 });
 

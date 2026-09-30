@@ -1,5 +1,6 @@
 const ArtistProfile = require("../models/ArtistProfile");
 const Track = require("../models/Track");
+const { presentTracks } = require("../services/trackPresenter");
 
 // Public-safe projection — mirrors services/artistService.js's
 // PUBLIC_FIELDS list (kept as its own constant here rather than
@@ -26,7 +27,11 @@ exports.getArtistById = async (req, res) => {
             visibility: "public",
         }).sort({ createdAt: -1 });
 
-        res.json({ artistProfile, tracks });
+        // V5.2-B5.1 — adds a top-level playbackUrl to each embedded
+        // track (see services/trackPresenter.js). Unrelated
+        // artistProfile behavior (the PUBLIC_ARTIST_FIELDS projection
+        // above, the public-only track filter) is unchanged.
+        res.json({ artistProfile, tracks: presentTracks(tracks) });
 
     } catch (error) {
 

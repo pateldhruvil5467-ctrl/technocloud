@@ -198,6 +198,31 @@ describe("GET /api/v1/me/tracks — ownership scoping", () => {
     });
 });
 
+describe("GET /api/v1/me/tracks — playbackUrl (V5.2-B5.1)", () => {
+    it("adds a playbackUrl resolved from the local provider, and leaves audio metadata unchanged", async () => {
+        const token = await createUserAndLogin("ARTIST");
+        const profile = await ArtistProfile.create({ userId: identityCache.ARTIST.userId, displayName: "Artist A" });
+        await Track.create({
+            title: "Owned",
+            artist: "Artist A",
+            audio: { provider: "local", key: "1788353068556-uuid.mp3", mimeType: "audio/mpeg", sizeBytes: 4096 },
+            artistId: profile._id,
+        });
+
+        const res = await request(app).get("/api/v1/me/tracks").set("Authorization", token);
+
+        expect(res.status).toBe(200);
+        expect(res.body.data).toHaveLength(1);
+        expect(res.body.data[0].playbackUrl).toBe("/uploads/1788353068556-uuid.mp3");
+        expect(res.body.data[0].audio).toEqual({
+            provider: "local",
+            key: "1788353068556-uuid.mp3",
+            mimeType: "audio/mpeg",
+            sizeBytes: 4096,
+        });
+    });
+});
+
 describe("GET /api/v1/me/tracks — pagination and ordering", () => {
     it("supports page/limit", async () => {
         const token = await createUserAndLogin("ARTIST");
