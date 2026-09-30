@@ -57,6 +57,24 @@ export async function createUploadIntent({ filename, mimeType, sizeBytes }, { si
 }
 
 /*
+ * V5.2-B4 — POST /api/v1/media/complete. Sends exactly {uploadId, title,
+ * artist} — nothing server-controlled (provider/key/bucket/
+ * artistProfileId/userId/owner/mimeType/sizeBytes) is ever included; the
+ * server resolves all of that from the persisted MediaUploadIntent and
+ * from its own verified S3 HeadObject call. Returns the created Track
+ * (server/controllers/v1/mediaController.js's completeUpload responds
+ * `{ data: { track } }`).
+ */
+export async function completeUpload({ uploadId, title, artist }, { signal } = {}) {
+    const res = await axios.post(
+        `${API_BASE_URL}/api/v1/media/complete`,
+        { uploadId, title, artist },
+        { headers: authHeaders(), signal }
+    );
+    return res.data.data.track;
+}
+
+/*
  * True for exactly the one outcome that means "S3 isn't available right
  * now in this environment — fall back to the existing local multipart
  * upload endpoint." Server-side, this is the single response shape

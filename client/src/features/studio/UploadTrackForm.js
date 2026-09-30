@@ -4,6 +4,7 @@ import Button from "../../components/primitives/Button";
 import Input from "../../components/primitives/Input";
 import { uploadTrack } from "../../services/tracksApi";
 import {
+    completeUpload,
     createUploadIntent,
     getServerMediaProvider,
     isMediaProviderUnavailable,
@@ -12,14 +13,16 @@ import {
 
 /*
  * UploadTrackForm — Phase UI.4, migrated in V5.2-B3 to support direct-
- * to-S3 upload alongside the original local multipart path.
+ * to-S3 upload alongside the original local multipart path, and
+ * completed in V5.2-B4 to actually finalize the S3 path into a real
+ * Track (POST /api/v1/media/complete — server/controllers/v1/
+ * mediaController.js's completeUpload).
  *
  * Only asks for what the local endpoint (POST /api/tracks/upload) and
- * the S3 upload-intent endpoint (POST /api/v1/media/upload-intent)
- * actually need — title/artist are collected either way (for B4's
- * eventual use, and to keep this form's shape stable regardless of
- * which storage path ends up handling any given upload), but only ever
- * sent to the server that consumes them.
+ * the S3 endpoints (upload-intent, complete) actually need — title/
+ * artist are collected once and reused by whichever path ends up
+ * handling the upload, but only ever sent to the server call that
+ * consumes them.
  *
  * WHICH PATH RUNS — on mount, this asks GET /api/v1/health which storage
  * provider the server is actually running with (mediaApi.
@@ -39,6 +42,16 @@ import {
  * this defaults to "local" — the known-reliable path — rather than
  * blocking upload entirely.
  *
+ * S3 flow, end to end: createUploadIntent -> uploadToPresignedUrl ->
+ * completeUpload -> onUploaded(track) — the same terminal callback the
+ * local path already used, so StudioPage's existing post-upload
+ * behavior (hide the form, silently reload the track list — see
+ * StudioPage.js's handleUploaded) applies identically regardless of
+ * which path actually ran. A failure in completeUpload specifically
+ * (the file IS already durably in S3 by that point) gets its own
+ * distinct, non-generic message — see extractErrorMessage below — never
+ * described as a normal upload failure.
+ *
  * Client-side file checks mirror the real limits enforced by
  * server/routes/trackRoutes.js AND server/middleware/
  * validateMediaUploadIntentBody.js (20MB, MP3 only, non-empty,
@@ -56,6 +69,15 @@ function isAbortError(error) {
 }
 
 function extractErrorMessage(error) {
+    if (error?.name === "CompletionError") {
+        // The S3 PUT already succeeded by the time this can happen — the
+        // file IS durably in storage, only finalization failed. A
+        // distinct message on purpose: describing this as a normal
+        // "upload failed" would be actively misleading (the upload did
+        // not fail), and the underlying uploadId stays valid for a
+        // manual retry right up until it expires — see uploadViaS3.
+        return error.message;
+    }
     if (error?.name === "S3UploadError") {
         // Never read/shown: S3's own response body (an XML error
         // payload) — see mediaApi.uploadToPresignedUrl.
@@ -80,7 +102,6 @@ function UploadTrackForm({ onUploaded, onCancel }) {
     const [fileError, setFileError] = useState("");
     const [submitError, setSubmitError] = useState("");
     const [submitting, setSubmitting] = useState(false);
-    const [uploadSucceeded, setUploadSucceeded] = useState(false);
     // null while the health check is still in flight — handleSubmit
     // treats that exactly like "local" (see the module comment above).
     const [mediaProvider, setMediaProvider] = useState(null);
@@ -115,7 +136,6 @@ function UploadTrackForm({ onUploaded, onCancel }) {
         const selected = e.target.files[0] || null;
         setFile(selected);
         setSubmitError("");
-        setUploadSucceeded(false);
 
         if (!selected) {
             setFileError("");
@@ -158,13 +178,32 @@ function UploadTrackForm({ onUploaded, onCancel }) {
 
         await uploadToPresignedUrl(intent.uploadUrl, file, mimeType, { signal: controller.signal });
 
-        if (mountedRef.current) {
-            setUploadSucceeded(true);
+        // From this point on, the file IS durably in S3 — a failure
+        // below is a distinct "upload succeeded, finalize failed" state,
+        // never the generic upload-failure message (see
+        // extractErrorMessage's CompletionError branch). The uploadId
+        // stays valid until it expires, so this is safe to let the
+        // artist retry manually (no automatic retry here).
+        let track;
+        try {
+            track = await completeUpload(
+                { uploadId: intent.uploadId, title, artist },
+                { signal: controller.signal }
+            );
+        } catch (completeError) {
+            if (isAbortError(completeError)) {
+                throw completeError; // propagate as-is — handleSubmit's own isAbortError check handles it silently
+            }
+            const error = new Error(
+                "Your file was uploaded to storage, but the track could not be finalized. Please try again."
+            );
+            error.name = "CompletionError";
+            throw error;
         }
-        // Deliberately NOT calling onUploaded(...) here — there is no
-        // Track yet (V5.2-B4 creates one from this completed upload).
-        // Nothing about a new track is reported upward; the "uploaded,
-        // awaiting processing" state below is the only thing shown.
+
+        if (mountedRef.current) {
+            onUploaded(track);
+        }
         return true;
     }
 
@@ -220,20 +259,6 @@ function UploadTrackForm({ onUploaded, onCancel }) {
     }
 
     const canSubmit = title.trim() && artist.trim() && file && !fileError && !submitting;
-
-    if (uploadSucceeded) {
-        return (
-            <div className="flex flex-col gap-3 rounded-md border border-border bg-surface p-4">
-                <p className="font-body text-sm text-text">
-                    Upload complete — your track is queued for processing and will appear here once it&apos;s
-                    ready.
-                </p>
-                <Button type="button" variant="secondary" onClick={onCancel} className="self-start">
-                    Done
-                </Button>
-            </div>
-        );
-    }
 
     return (
         <form

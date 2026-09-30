@@ -1,6 +1,7 @@
 import axios from "axios";
 
 import {
+    completeUpload,
     createUploadIntent,
     getServerMediaProvider,
     isMediaProviderUnavailable,
@@ -51,6 +52,57 @@ describe("mediaApi.createUploadIntent", () => {
         axios.post.mockRejectedValue({ response: { status: 400 } });
         await expect(createUploadIntent({ filename: "a.mp3", mimeType: "audio/mpeg", sizeBytes: 1 })).rejects.toMatchObject({
             response: { status: 400 },
+        });
+    });
+});
+
+describe("mediaApi.completeUpload", () => {
+    it("posts to the correct endpoint with exactly uploadId/title/artist, and an Authorization header", async () => {
+        sessionStorage.setItem("token", "test-token");
+        axios.post.mockResolvedValue({
+            data: { data: { track: { _id: "t1", title: "My Track", artist: "My Artist" } } },
+        });
+
+        const result = await completeUpload({ uploadId: "u1", title: "My Track", artist: "My Artist" });
+
+        expect(axios.post).toHaveBeenCalledWith(
+            `${API_BASE_URL}/api/v1/media/complete`,
+            { uploadId: "u1", title: "My Track", artist: "My Artist" },
+            expect.objectContaining({ headers: { Authorization: "test-token" } })
+        );
+        expect(result).toEqual({ _id: "t1", title: "My Track", artist: "My Artist" });
+    });
+
+    it("sends no server-controlled media metadata — only uploadId/title/artist appear in the request", async () => {
+        axios.post.mockResolvedValue({ data: { data: { track: {} } } });
+
+        await completeUpload({
+            uploadId: "u1",
+            title: "T",
+            artist: "A",
+            provider: "s3",
+            key: "audio/attacker/evil.mp3",
+            artistProfileId: "000000000000000000000000",
+        });
+
+        const [, body] = axios.post.mock.calls[0];
+        expect(Object.keys(body).sort()).toEqual(["artist", "title", "uploadId"]);
+    });
+
+    it("forwards an AbortController signal when provided", async () => {
+        axios.post.mockResolvedValue({ data: { data: { track: {} } } });
+        const controller = new AbortController();
+
+        await completeUpload({ uploadId: "u1", title: "T", artist: "A" }, { signal: controller.signal });
+
+        const [, , config] = axios.post.mock.calls[0];
+        expect(config.signal).toBe(controller.signal);
+    });
+
+    it("propagates a rejection from axios rather than swallowing it", async () => {
+        axios.post.mockRejectedValue({ response: { status: 404 } });
+        await expect(completeUpload({ uploadId: "u1", title: "T", artist: "A" })).rejects.toMatchObject({
+            response: { status: 404 },
         });
     });
 });

@@ -71,4 +71,17 @@ module.exports = async function globalSetup() {
     // separate file, its own isolated instance) trigger a real 429 with
     // a fast, bounded burst instead of the production default (20).
     process.env.MEDIA_UPLOAD_INTENT_RATE_LIMIT_MAX = "40";
+
+    // V5.2-B4 — same reasoning, for the dedicated
+    // POST /api/v1/media/complete limiter (its own instance, separate
+    // from every other limiter — see middleware/rateLimiters.js).
+    // mediaComplete.test.js's own real request volume across its full
+    // suite (ownership/expiry/verification/idempotency/concurrency
+    // scenarios, in its own isolated app/limiter instance) stays
+    // comfortably under 40, matching the same headroom already chosen
+    // for MEDIA_UPLOAD_INTENT_RATE_LIMIT_MAX, while still letting
+    // mediaCompleteRateLimit.test.js (a separate file, its own isolated
+    // instance) trigger a real 429 with a fast, bounded burst instead of
+    // the production default (20).
+    process.env.MEDIA_COMPLETE_RATE_LIMIT_MAX = "40";
 };

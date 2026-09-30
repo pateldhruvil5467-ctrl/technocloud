@@ -1,4 +1,4 @@
-const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
+const { S3Client, PutObjectCommand, HeadObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
 const config = require("../../config/env");
@@ -83,4 +83,40 @@ async function createUploadTarget({ key, mimeType, sizeBytes }) {
     return { uploadUrl, expiresIn };
 }
 
-module.exports = { isConfigured, getPlaybackUrl, createUploadTarget };
+// V5.2-B4 — positively verifies an object actually exists in S3 before
+// the controller trusts anything about it. `key` MUST come exclusively
+// from a server-persisted MediaUploadIntent.key — this function has no
+// awareness of, and applies no logic to, where the key came from; it
+// only ever heads whatever key it's given (same posture as
+// createUploadTarget above).
+//
+// Returns { exists: false } for a genuine "no such object" (HeadObject's
+// own NotFound), so the controller can distinguish "nothing there yet"
+// from every other failure. Anything else (AccessDenied, a network
+// error, a throttling error, ...) is NOT treated as "missing" — it is
+// rethrown as-is, so the controller can tell a real infrastructure
+// problem apart from a simple not-found and respond accordingly (see
+// controllers/v1/mediaController.js's completeUpload).
+async function verifyUpload({ key }) {
+    if (!isConfigured()) {
+        throw new Error("s3 media provider is not configured (S3_BUCKET / S3_REGION).");
+    }
+
+    try {
+        const result = await getClient().send(new HeadObjectCommand({ Bucket: config.s3Bucket, Key: key }));
+
+        return {
+            exists: true,
+            contentLength: result.ContentLength,
+            contentType: result.ContentType,
+            etag: result.ETag,
+        };
+    } catch (error) {
+        if (error.name === "NotFound") {
+            return { exists: false };
+        }
+        throw error;
+    }
+}
+
+module.exports = { isConfigured, getPlaybackUrl, createUploadTarget, verifyUpload };

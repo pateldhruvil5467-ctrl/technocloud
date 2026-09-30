@@ -14,22 +14,22 @@ const s3 = require("./media/s3");
  *   - isConfigured(): boolean                          [implemented — B1]
  *   - getPlaybackUrl(key, options?): string             [implemented — B1]
  *   - createUploadTarget({key, mimeType, sizeBytes})    [implemented — B2, s3 only]
- *   - verifyUpload(...): ...                             [V5.2-B4]
+ *   - verifyUpload({key})                                [implemented — B4, s3 only]
  *   - deleteObject(key): ...                             [future, if/when needed]
  *
- * B2 adds createUploadTarget — implemented only by services/media/s3.js;
- * services/media/local.js deliberately does NOT implement it (the
- * existing local upload path is the unchanged multer endpoint in
- * routes/trackRoutes.js, which never goes through this abstraction at
- * all — a "local createUploadTarget" would have nothing real to do).
- * getProvider(...)/createUploadTarget(...) below handle that absence
- * with a clear error rather than assuming every provider implements
- * every operation.
+ * B2/B4 add createUploadTarget/verifyUpload — implemented only by
+ * services/media/s3.js; services/media/local.js deliberately does NOT
+ * implement either (the existing local upload path is the unchanged
+ * multer endpoint in routes/trackRoutes.js, which never goes through
+ * this abstraction at all — a "local verifyUpload" would have nothing
+ * real to do: a completed multer upload IS the verification).
+ * getProvider(...)/createUploadTarget(...)/verifyUpload(...) below all
+ * handle that absence with a clear error rather than assuming every
+ * provider implements every operation.
  *
- * verifyUpload/deleteObject remain deliberately NOT stubbed out — B2's
- * own instructions are explicit that upload completion/finalization and
- * deletion are later phases, and a stub function nothing calls yet is
- * exactly the kind of speculative, unverified code this phase avoids.
+ * deleteObject remains deliberately NOT stubbed out — a stub function
+ * nothing calls yet is exactly the kind of speculative, unverified code
+ * this project avoids; it has no B4 caller.
  */
 const PROVIDERS = { local, s3 };
 
@@ -89,4 +89,26 @@ async function createUploadTarget({ key, mimeType, sizeBytes }) {
     return provider.createUploadTarget({ key, mimeType, sizeBytes });
 }
 
-module.exports = { getProvider, getPlaybackUrl, createUploadTarget };
+// V5.2-B4 — positively verifies an upload against whichever provider is
+// CONFIGURED (config.mediaStorageProvider), mirroring createUploadTarget's
+// dispatch above exactly. With the default provider ("local"), this
+// always fails clearly and safely — there is no HeadObject-equivalent
+// verification concept for local disk uploads (the multer upload
+// completing successfully already IS the verification, handled entirely
+// by the existing, unchanged trackController.uploadTrack).
+async function verifyUpload({ key }) {
+    const providerName = config.mediaStorageProvider;
+    const provider = getProvider(providerName);
+
+    if (typeof provider.verifyUpload !== "function") {
+        throw new Error(`Media storage provider "${providerName}" does not support verifying an upload.`);
+    }
+
+    if (!provider.isConfigured()) {
+        throw new Error(`Media storage provider "${providerName}" is not configured.`);
+    }
+
+    return provider.verifyUpload({ key });
+}
+
+module.exports = { getProvider, getPlaybackUrl, createUploadTarget, verifyUpload };

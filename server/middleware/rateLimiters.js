@@ -79,10 +79,26 @@ const mediaUploadIntentLimiter = rateLimit({
     handler: rateLimitHandler,
 });
 
+// V5.2-B4 — dedicated limiter for POST /api/v1/media/complete. Its own
+// instance, never reused from mediaUploadIntentLimiter or any other
+// limiter: every accepted request here triggers a real S3 HeadObject
+// call and a Track write, a distinct cost/risk profile from issuing a
+// presigned URL. Same 15-minute window as every other limiter for
+// consistency; a conservative default max comparable to
+// mediaUploadIntentLimiter's.
+const mediaCompleteLimiter = rateLimit({
+    windowMs: config.mediaCompleteRateLimitWindowMs,
+    max: config.mediaCompleteRateLimitMax,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: rateLimitHandler,
+});
+
 module.exports = {
     loginLimiter,
     registerLimiter,
     publicReadLimiter,
     aiInterpretLimiter,
     mediaUploadIntentLimiter,
+    mediaCompleteLimiter,
 };

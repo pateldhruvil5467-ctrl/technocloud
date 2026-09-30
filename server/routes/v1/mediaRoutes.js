@@ -4,8 +4,10 @@ const router = express.Router();
 const auth = require("../../middleware/authMiddleware");
 const requireRole = require("../../middleware/requireRole");
 const resolveOrCreateOwnArtistProfile = require("../../middleware/resolveOrCreateOwnArtistProfile");
+const resolveOwnArtistProfile = require("../../middleware/resolveOwnArtistProfile");
 const validateMediaUploadIntentBody = require("../../middleware/validateMediaUploadIntentBody");
-const { mediaUploadIntentLimiter } = require("../../middleware/rateLimiters");
+const validateMediaCompleteBody = require("../../middleware/validateMediaCompleteBody");
+const { mediaUploadIntentLimiter, mediaCompleteLimiter } = require("../../middleware/rateLimiters");
 const mediaController = require("../../controllers/v1/mediaController");
 
 // POST /api/v1/media/upload-intent — V5.2-B2. Issues a short-lived
@@ -38,6 +40,27 @@ router.post(
     resolveOrCreateOwnArtistProfile,
     validateMediaUploadIntentBody,
     mediaController.createUploadIntent
+);
+
+// POST /api/v1/media/complete — V5.2-B4. Verifies a completed S3 upload
+// (via a real HeadObject call) and, only once that succeeds, atomically
+// consumes its MediaUploadIntent and creates the resulting Track.
+//
+// Uses resolveOwnArtistProfile (the read-only variant — 404s if the
+// caller has no ArtistProfile, never creates one), NOT
+// resolveOrCreateOwnArtistProfile: by completion time, the artist's
+// profile was already created (or already existed) during the
+// upload-intent step above. If it's missing now, there is nothing
+// legitimate to complete an upload against, and lazily creating one here
+// would be nonsensical.
+router.post(
+    "/complete",
+    mediaCompleteLimiter,
+    auth,
+    requireRole(["ARTIST", "ADMIN"]),
+    resolveOwnArtistProfile,
+    validateMediaCompleteBody,
+    mediaController.completeUpload
 );
 
 module.exports = router;

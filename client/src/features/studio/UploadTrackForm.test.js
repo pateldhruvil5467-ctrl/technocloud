@@ -4,7 +4,12 @@ import userEvent from "@testing-library/user-event";
 
 import UploadTrackForm from "./UploadTrackForm";
 import { uploadTrack } from "../../services/tracksApi";
-import { createUploadIntent, getServerMediaProvider, uploadToPresignedUrl } from "../../services/mediaApi";
+import {
+    completeUpload,
+    createUploadIntent,
+    getServerMediaProvider,
+    uploadToPresignedUrl,
+} from "../../services/mediaApi";
 
 jest.mock("../../services/tracksApi");
 jest.mock("../../services/mediaApi", () => ({
@@ -12,6 +17,7 @@ jest.mock("../../services/mediaApi", () => ({
     getServerMediaProvider: jest.fn(),
     createUploadIntent: jest.fn(),
     uploadToPresignedUrl: jest.fn(),
+    completeUpload: jest.fn(),
 }));
 
 function makeFile({ name = "track.mp3", type = "audio/mpeg", size = 1024 } = {}) {
@@ -164,9 +170,45 @@ describe("UploadTrackForm — S3 flow (server reports MEDIA_STORAGE_PROVIDER=s3)
         expect(uploadTrack).not.toHaveBeenCalled();
     });
 
-    it("shows the uploaded/waiting-for-processing state after a successful S3 PUT, and never calls Track creation", async () => {
-        createUploadIntent.mockResolvedValue({ uploadUrl: "https://s3.example/put" });
+    it("calls completeUpload with exactly uploadId/title/artist after a successful S3 PUT", async () => {
+        createUploadIntent.mockResolvedValue({ uploadId: "u1", uploadUrl: "https://s3.example/put" });
         uploadToPresignedUrl.mockResolvedValue({ ok: true });
+        completeUpload.mockResolvedValue({ _id: "t1" });
+
+        await renderForm();
+        await fillTitleArtist();
+        await selectFile(makeFile());
+        await clickUpload();
+
+        await waitFor(() => expect(completeUpload).toHaveBeenCalledTimes(1));
+        const [payload] = completeUpload.mock.calls[0];
+        expect(payload).toEqual({ uploadId: "u1", title: "My Track", artist: "My Artist" });
+    });
+
+    it("sends only uploadId/title/artist to completeUpload — no server-controlled media metadata", async () => {
+        createUploadIntent.mockResolvedValue({
+            uploadId: "u1",
+            key: "audio/artist123/uuid.mp3",
+            uploadUrl: "https://s3.example/put",
+        });
+        uploadToPresignedUrl.mockResolvedValue({ ok: true });
+        completeUpload.mockResolvedValue({ _id: "t1" });
+
+        await renderForm();
+        await fillTitleArtist();
+        await selectFile(makeFile());
+        await clickUpload();
+
+        await waitFor(() => expect(completeUpload).toHaveBeenCalledTimes(1));
+        const [payload] = completeUpload.mock.calls[0];
+        expect(Object.keys(payload).sort()).toEqual(["artist", "title", "uploadId"]);
+    });
+
+    it("onUploaded receives exactly the Track returned by completeUpload, and the local endpoint is never called", async () => {
+        createUploadIntent.mockResolvedValue({ uploadId: "u1", uploadUrl: "https://s3.example/put" });
+        uploadToPresignedUrl.mockResolvedValue({ ok: true });
+        const track = { _id: "t1", title: "My Track", artist: "My Artist" };
+        completeUpload.mockResolvedValue(track);
         const onUploaded = jest.fn();
 
         await renderForm({ onUploaded });
@@ -174,8 +216,7 @@ describe("UploadTrackForm — S3 flow (server reports MEDIA_STORAGE_PROVIDER=s3)
         await selectFile(makeFile());
         await clickUpload();
 
-        expect(await screen.findByText(/queued for processing/i)).toBeInTheDocument();
-        expect(onUploaded).not.toHaveBeenCalled();
+        await waitFor(() => expect(onUploaded).toHaveBeenCalledWith(track));
         expect(uploadTrack).not.toHaveBeenCalled();
     });
 });
@@ -326,6 +367,32 @@ describe("UploadTrackForm — error handling", () => {
 
         expect(await screen.findByText(/upload to storage failed/i)).toBeInTheDocument();
     });
+
+    it("shows a distinct, safe message when the S3 PUT succeeds but completeUpload fails — never described as a normal upload failure", async () => {
+        getServerMediaProvider.mockResolvedValue("s3");
+        createUploadIntent.mockResolvedValue({ uploadId: "u1", uploadUrl: "https://s3.example/put" });
+        uploadToPresignedUrl.mockResolvedValue({ ok: true });
+        completeUpload.mockRejectedValue({
+            response: {
+                status: 404,
+                data: { error: { code: "UPLOAD_INTENT_NOT_FOUND", message: "No matching upload was found." } },
+            },
+        });
+        const onUploaded = jest.fn();
+
+        await renderForm({ onUploaded });
+        await fillTitleArtist();
+        await selectFile(makeFile());
+        await clickUpload();
+
+        const message = await screen.findByText(/could not be finalized/i);
+        expect(message).toBeInTheDocument();
+        // Distinct from the generic "upload failed" wording, and never
+        // the raw server error text either.
+        expect(screen.queryByText(/no matching upload was found/i)).not.toBeInTheDocument();
+        expect(onUploaded).not.toHaveBeenCalled();
+        expect(uploadTrack).not.toHaveBeenCalled();
+    });
 });
 
 describe("UploadTrackForm — state and cancellation", () => {
@@ -401,6 +468,38 @@ describe("UploadTrackForm — state and cancellation", () => {
         // its own signal fires — simulated here since uploadToPresignedUrl
         // itself is mocked in this test.
         rejectPut(Object.assign(new Error("aborted"), { name: "AbortError" }));
+
+        await waitFor(() => expect(screen.getByRole("button", { name: /^upload$/i })).not.toBeDisabled());
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("aborts an in-progress completeUpload call on Cancel and restores a usable, non-error form state", async () => {
+        getServerMediaProvider.mockResolvedValue("s3");
+        createUploadIntent.mockResolvedValue({ uploadId: "u1", uploadUrl: "https://s3.example/put" });
+        uploadToPresignedUrl.mockResolvedValue({ ok: true });
+        let rejectComplete;
+        completeUpload.mockImplementation(
+            () =>
+                new Promise((_, reject) => {
+                    rejectComplete = reject;
+                })
+        );
+
+        await renderForm();
+        await fillTitleArtist();
+        await selectFile(makeFile());
+        await clickUpload();
+
+        await waitFor(() => expect(completeUpload).toHaveBeenCalledTimes(1));
+        expect(screen.getByRole("button", { name: /uploading/i })).toBeDisabled();
+
+        const [, { signal }] = completeUpload.mock.calls[0];
+        expect(signal.aborted).toBe(false);
+
+        await userEvent.click(screen.getByRole("button", { name: /cancel/i }));
+        expect(signal.aborted).toBe(true);
+
+        rejectComplete(Object.assign(new Error("aborted"), { name: "AbortError" }));
 
         await waitFor(() => expect(screen.getByRole("button", { name: /^upload$/i })).not.toBeDisabled());
         expect(screen.queryByRole("alert")).not.toBeInTheDocument();

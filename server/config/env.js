@@ -133,6 +133,17 @@ const config = Object.freeze({
         Number(process.env.MEDIA_UPLOAD_INTENT_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
     mediaUploadIntentRateLimitMax:
         Number(process.env.MEDIA_UPLOAD_INTENT_RATE_LIMIT_MAX) || 20,
+
+    // V5.2-B4 — dedicated rate limiter for POST /api/v1/media/complete
+    // (middleware/rateLimiters.js). Same 15-minute window convention as
+    // every other limiter; a conservative default ceiling comparable to
+    // mediaUploadIntentRateLimitMax's, since every accepted request
+    // triggers a real S3 HeadObject call and a Track write — not a
+    // browsing-style read.
+    mediaCompleteRateLimitWindowMs:
+        Number(process.env.MEDIA_COMPLETE_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+    mediaCompleteRateLimitMax:
+        Number(process.env.MEDIA_COMPLETE_RATE_LIMIT_MAX) || 20,
 });
 
 module.exports = config;
