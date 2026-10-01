@@ -7,8 +7,6 @@ import {
     useState,
 } from "react";
 
-import { API_BASE_URL } from "../services/api";
-
 /*
  * TechnoCloud application-level player (Phase UI.2).
  *
@@ -46,11 +44,34 @@ export function PlayerProvider({ children }) {
     // Load a new track's src whenever it changes, then play it. Playing
     // the *same* track again (see playTrack below) is handled as a
     // resume instead of reaching this effect, so it never restarts from 0.
+    //
+    // The backend resolves storage metadata (currentTrack.audio — a
+    // provider/key object or legacy filename string) into a ready-to-use
+    // playbackUrl (see server/services/trackPresenter.js, V5.2-B5.1) —
+    // this is the only field the player ever reads for playback, so this
+    // context has no notion of "uploads" paths or storage providers.
     useEffect(() => {
         const audio = audioRef.current;
         if (!audio || !currentTrack) return;
 
-        audio.src = `${API_BASE_URL}/uploads/${currentTrack.audio}`;
+        const { playbackUrl } = currentTrack;
+        const isPlayable = typeof playbackUrl === "string" && playbackUrl.length > 0;
+
+        if (!isPlayable) {
+            // No resolvable URL for this track (unconfigured/misconfigured
+            // storage provider on the backend, or a still-processing
+            // upload) — fail safely instead of assigning something like
+            // "[object Object]" as the audio src. This only re-runs when
+            // currentTrack itself changes, so it can't loop.
+            audio.pause();
+            audio.removeAttribute("src");
+            setIsPlaying(false);
+            setCurrentTime(0);
+            setError("This track couldn't be played.");
+            return;
+        }
+
+        audio.src = playbackUrl;
         audio.currentTime = 0;
         setCurrentTime(0);
         setError(null);
